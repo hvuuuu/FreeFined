@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { assessImageDimensions } from "@/lib/enhancer/image-size";
+import type { ToolMode } from "@/lib/enhancer/models";
 import { cn } from "@/lib/utils";
 import {
   BanknoteX,
@@ -21,6 +22,7 @@ import {
   type DragEvent,
   type KeyboardEvent,
 } from "react";
+import Link from "next/link";
 
 export interface UploadSelection {
   file: File;
@@ -31,6 +33,7 @@ export interface UploadSelection {
 }
 
 interface UploadZoneProps {
+  toolMode?: ToolMode;
   onFileSelected: (selection: UploadSelection) => void;
 }
 
@@ -107,7 +110,10 @@ export async function processUploadFile(
   }
 }
 
-export function UploadZone({ onFileSelected }: UploadZoneProps) {
+export function UploadZone({
+  toolMode = "enhance",
+  onFileSelected,
+}: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -165,17 +171,22 @@ export function UploadZone({ onFileSelected }: UploadZoneProps) {
   );
 
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6">
+    <section className="mx-auto flex w-full max-w-7xl flex-col items-center gap-6">
       <div className="space-y-2 sm:space-y-3 text-center">
-        <h1 className="text-balance text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-          FreeFined AI image enhancer for{" "}
+        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+          {toolMode === "remove-background"
+            ? "FreeFined AI background remover for "
+            : "FreeFined AI image enhancer for "}
           <span className="bg-gradient-to-r from-red-500 to-rose-500 bg-clip-text text-transparent">
-            one-click upscaling
+            {toolMode === "remove-background"
+              ? "transparent images"
+              : "one-click upscaling"}
           </span>
         </h1>
         <p className="text-pretty text-xs sm:text-sm md:text-base text-muted-foreground">
-          Upscale, denoise, and sharpen JPG, PNG, and WEBP photos in seconds. No
-          account, no limits.
+          {toolMode === "remove-background"
+            ? "Cut out the main subject from JPG, PNG, and WEBP images in your browser. No account, no watermark."
+            : "Upscale, denoise, and sharpen JPG, PNG, and WEBP photos in seconds. No account, no limits."}
         </p>
       </div>
 
@@ -273,10 +284,32 @@ export function UploadZone({ onFileSelected }: UploadZoneProps) {
         </Badge>
       </div>
 
-      <p className="max-w-2xl text-center text-xs leading-relaxed text-muted-foreground sm:text-sm">
-        FreeFined runs enhancement work in your browser with WebGPU, WebGL, or
-        WASM when available, then lets you compare and download the result.
+      <p className="max-w-7xl text-center text-xs leading-relaxed text-muted-foreground sm:text-sm">
+        {toolMode === "remove-background"
+          ? "FreeFined runs background removal in your browser with WebGPU or WASM when available, then lets you download a transparent image."
+          : "FreeFined runs enhancement work in your browser with WebGPU, WebGL, or WASM when available, then lets you compare and download the result."}
       </p>
+
+      <nav
+        aria-label="Product information"
+        className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground sm:text-sm"
+      >
+        <Link
+          href="/about"
+          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          About FreeFined
+        </Link>
+        <span aria-hidden="true" className="text-border">
+          /
+        </span>
+        <Link
+          href="/privacy"
+          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          Privacy
+        </Link>
+      </nav>
     </section>
   );
 }

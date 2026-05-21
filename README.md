@@ -1,6 +1,6 @@
 # FreeFined
 
-FreeFined is a free, browser-first AI image enhancer built with Next.js. It lets users upload an image, choose an enhancement preset, run client-side ONNX inference when available, compare the result with a before/after slider, and download the enhanced image without creating an account.
+FreeFined is a free, browser-first AI image tool built with Next.js. It lets users upload an image, enhance it, or remove its background with client-side ONNX inference when available, then download the result without creating an account.
 
 ## Highlights
 
@@ -8,10 +8,11 @@ FreeFined is a free, browser-first AI image enhancer built with Next.js. It lets
 - Browser-safe size checks with a warning above 3000 px and a hard limit above 6000 px.
 - Auto runtime planning across WebGPU, WebGL, and WASM.
 - Enhancement presets for Auto, Quality, Balanced, and Fast output.
+- Background removal presets for Auto, Quality, and Fast transparent PNG output.
 - ONNX model loading with Cache API and IndexedDB caching in the browser.
-- Worker-based image processing so the UI stays responsive during enhancement.
-- Built-in fallback enhancement path when a model cannot load or initialize.
-- Before/after comparison slider and direct enhanced-image download.
+- Worker-based image processing so the UI stays responsive during enhancement and background removal.
+- Built-in fallback paths when a model cannot load or initialize.
+- Before/after enhancement comparison, transparent background preview, and direct result download.
 - SEO metadata, sitemap, robots config, and production-only Vercel Analytics.
 
 ## Tech Stack
@@ -82,8 +83,10 @@ The app exposes model endpoints from `app/api/models/[id]/route.ts` and currentl
 - `real-esrgan-x4` for highest-quality general photo enhancement.
 - `realesrgan-general-x4v3` for the default balanced path with much lower runtime and memory pressure.
 - `super-resolution-lite` for the fastest compatibility fallback on weak devices.
+- `birefnet-lite-fp16` for high-quality browser background removal on capable WebGPU devices.
+- `u2netp` for lightweight background removal on constrained devices and fallback paths.
 
-By default, models are served from `public/models` when downloaded locally, otherwise they are fetched from pinned upstream URLs through the Next.js API route and cached in the browser. If the model fetch or ONNX session setup fails, the worker falls back to canvas-based enhancement filters so the app can still produce an output.
+By default, models are served from `public/models` when downloaded locally, otherwise they are fetched from pinned upstream URLs through the Next.js API route and cached in the browser. If the enhancement model fetch or ONNX session setup fails, the worker falls back to canvas-based enhancement filters. If BiRefNet-lite cannot load or initialize, background removal retries with U2Netp.
 
 Optional local model/runtime setup:
 
@@ -98,9 +101,9 @@ The script can download model files into `public/models` and copies ONNX Runtime
 
 ```text
 app/                  Next.js app routes, metadata, sitemap, robots, model API
-components/           Upload, enhancement controls, preview, theme, and UI parts
+components/           Upload, tool controls, preview, theme, and UI parts
 lib/enhancer/         Runtime planning, model metadata, model cache, tiling, limits
-workers/              Web Worker enhancement pipeline
+workers/              Web Worker enhancement and background removal pipelines
 public/               Logo, robots file, model notes, and ONNX runtime assets
 scripts/              Local model and ONNX runtime asset installer
 styles/               Shared style assets
@@ -137,6 +140,6 @@ This writes pnpm's build approvals to `pnpm-workspace.yaml`. Keep that file in t
 
 ## Notes
 
-- Processing happens in the browser worker after the image is selected.
+- Processing happens in a browser worker after the image is selected.
 - Uploaded images are not sent to an application backend for processing.
 - The model API route only proxies ONNX model files from the pinned upstream URLs.

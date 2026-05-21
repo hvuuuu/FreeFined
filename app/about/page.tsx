@@ -6,22 +6,22 @@ import Link from "next/link";
 export const metadata = buildPageMetadata({
   title: "About",
   description:
-    "Learn how FreeFined enhances images in the browser with AI upscaling, denoising, and sharpening for JPG, PNG, and WEBP photos.",
+    "Learn how FreeFined enhances images and removes backgrounds in the browser for JPG, PNG, and WEBP photos.",
   path: "/about",
 });
 
 const highlights = [
-  "Enhances JPG, PNG, and WEBP images up to 10 MB.",
+  "Enhances and removes backgrounds from JPG, PNG, and WEBP images up to 10 MB.",
   "Runs image processing in a browser worker when possible.",
   "Chooses WebGPU, WebGL, or WASM based on the current device.",
-  "Provides a fallback enhancement path if a model cannot load.",
+  "Provides lightweight fallback paths if a model cannot load.",
 ] as const;
 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 justify-center flex-col gap-10 px-4 py-6 sm:px-6 sm:py-10 md:py-14 lg:py-20">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 justify-center flex-col gap-10 p-4 sm:p-6 lg:py-8">
         <section className="space-y-4">
           <p className="text-sm font-medium text-red-400">{siteConfig.name}</p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -29,8 +29,8 @@ export default function AboutPage() {
           </h1>
           <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
             FreeFined is a free AI image enhancer for sharpening, denoising,
-            and upscaling photos directly from the browser. The app is built
-            for quick edits without accounts, paywalls, or watermarking.
+            upscaling, and background removal directly from the browser. The app
+            is built for quick edits without accounts, paywalls, or watermarking.
           </p>
         </section>
 
@@ -51,14 +51,15 @@ export default function AboutPage() {
           <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
             After an image is selected, FreeFined checks its format and size,
             creates a local preview, and sends the image to a browser worker for
-            enhancement. The worker loads the best available model path for the
-            device and returns an enhanced image that can be compared and
-            downloaded.
+            the selected tool. The worker loads the best available model path
+            for the device and returns either an enhanced image or a transparent
+            PNG that can be previewed and downloaded.
           </p>
           <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
             Uploaded images are not processed by a FreeFined application
             backend. Model files may be loaded through the app&apos;s model route
-            so the browser can perform the enhancement locally.
+            so the browser can perform enhancement and background removal
+            locally.
           </p>
         </section>
 

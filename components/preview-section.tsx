@@ -2,16 +2,25 @@
 
 import Image from "next/image"
 import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
-import { ArrowLeftRight, Check, Download, RotateCcw } from "lucide-react"
+import { AlertTriangle, ArrowLeftRight, Check, Download, RotateCcw } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MODEL_SPECS, type EnhancementMode } from "@/lib/enhancer/models"
+import {
+  BACKGROUND_REMOVAL_MODEL_SPECS,
+  MODEL_SPECS,
+  type BackgroundRemovalMode,
+  type EnhancementMode,
+  type ToolMode,
+} from "@/lib/enhancer/models"
 
 interface PreviewSectionProps {
+  toolMode: ToolMode
   originalUrl: string
-  enhancedUrl: string
-  mode: EnhancementMode
+  resultUrl: string
+  enhancementMode: EnhancementMode
+  backgroundRemovalMode: BackgroundRemovalMode
+  workerWarning: string | null
   fileName: string
   onReset: () => void
 }
@@ -22,18 +31,33 @@ function clampPercentage(value: number) {
   return Math.max(0, Math.min(100, value))
 }
 
-function buildDownloadFileName(fileName: string) {
+const checkerboardStyle = {
+  backgroundColor: "rgba(148, 163, 184, 0.08)",
+  backgroundImage:
+    "linear-gradient(45deg, rgba(148, 163, 184, 0.22) 25%, transparent 25%), linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.22) 75%), linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.22) 75%)",
+  backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0",
+  backgroundSize: "20px 20px",
+}
+
+function buildDownloadFileName(fileName: string, toolMode: ToolMode) {
   const lastDotIndex = fileName.lastIndexOf(".")
   const baseName = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName
   const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : ".png"
+
+  if (toolMode === "remove-background") {
+    return `${baseName}-no-bg.png`
+  }
 
   return `${baseName}-enhanced${extension}`
 }
 
 export function PreviewSection({
+  toolMode,
   originalUrl,
-  enhancedUrl,
-  mode,
+  resultUrl,
+  enhancementMode,
+  backgroundRemovalMode,
+  workerWarning,
   fileName,
   onReset,
 }: PreviewSectionProps) {
@@ -43,12 +67,12 @@ export function PreviewSection({
 
   const handleDownload = useCallback(() => {
     const link = document.createElement("a")
-    link.href = enhancedUrl
-    link.download = buildDownloadFileName(fileName)
+    link.href = resultUrl
+    link.download = buildDownloadFileName(fileName, toolMode)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-  }, [enhancedUrl, fileName])
+  }, [fileName, resultUrl, toolMode])
 
   const updateSliderFromClientX = useCallback((clientX: number) => {
     const area = sliderAreaRef.current
@@ -104,6 +128,14 @@ export function PreviewSection({
     }
   }, [])
 
+  const isBackgroundRemoval = toolMode === "remove-background"
+  const title = isBackgroundRemoval
+    ? "Background removed"
+    : "Enhancement complete"
+  const downloadLabel = isBackgroundRemoval
+    ? "Download Transparent"
+    : "Download Enhanced"
+
   return (
     <section className="mx-auto w-full max-w-7xl space-y-6 sm:space-y-6">
       <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
@@ -112,12 +144,59 @@ export function PreviewSection({
             <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
               <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
             </div>
-            <h2 className="text-base font-semibold sm:text-lg">Enhancement complete</h2>
+            <h2 className="text-base font-semibold sm:text-lg">{title}</h2>
           </div>
         </div>
       </div>
 
-      <div className="space-y-3">
+      {isBackgroundRemoval ? (
+        <div className="space-y-3">
+          {workerWarning && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 sm:text-sm">
+              <p className="flex items-start justify-center gap-2 text-center">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{workerWarning}</span>
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            <Badge
+              variant="secondary"
+              className="bg-slate-500/15 text-xs text-slate-700 ring-1 ring-slate-500/30 hover:bg-slate-500/20 dark:text-slate-200 sm:text-sm"
+            >
+              Original
+            </Badge>
+            <Badge
+              variant="secondary"
+              className="bg-emerald-500/15 text-xs text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 sm:text-sm"
+            >
+              Transparent
+            </Badge>
+          </div>
+
+          <Card className="mx-auto w-full max-w-md overflow-hidden ring-1 ring-red-500/20 sm:max-w-2xl">
+            <div
+              className="relative aspect-4/3 w-full overflow-hidden sm:aspect-16/10"
+              style={checkerboardStyle}
+            >
+              <Image
+                src={resultUrl || "/placeholder.svg"}
+                alt="Image with background removed"
+                fill
+                sizes="(max-width: 640px) 100vw, 768px"
+                unoptimized
+                className="absolute inset-0 h-full w-full object-contain p-2"
+              />
+            </div>
+          </Card>
+
+          <p className="text-center text-xs text-muted-foreground sm:text-sm">
+            Model used: {BACKGROUND_REMOVAL_MODEL_SPECS[backgroundRemovalMode].label}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <Badge
             variant="secondary"
@@ -136,13 +215,13 @@ export function PreviewSection({
         <Card className="mx-auto w-full max-w-md overflow-hidden bg-muted ring-1 ring-red-500/20 sm:max-w-2xl">
           <div className="relative aspect-4/3 w-full overflow-hidden sm:aspect-16/10">
             <Image
-              src={enhancedUrl || "/placeholder.svg"}
+              src={resultUrl || "/placeholder.svg"}
               alt="Enhanced image"
               fill
               sizes="(max-width: 640px) 100vw, 768px"
               unoptimized
               className="absolute inset-0 h-full w-full object-contain"
-              style={{ filter: MODEL_SPECS[mode].fallbackFilter }}
+              style={{ filter: MODEL_SPECS[enhancementMode].fallbackFilter }}
             />
 
             <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}>
@@ -185,6 +264,7 @@ export function PreviewSection({
           </div>
         </Card>
       </div>
+      )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
         <Button variant="ghost" onClick={onReset} className="w-full cursor-pointer text-xs sm:w-auto sm:text-sm">
@@ -196,7 +276,7 @@ export function PreviewSection({
           className="w-full cursor-pointer bg-linear-to-r from-red-500 to-rose-500 text-xs text-white hover:from-red-600 hover:to-rose-600 sm:w-auto sm:text-sm"
         >
           <Download className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-          Download Enhanced
+          {downloadLabel}
         </Button>
       </div>
     </section>

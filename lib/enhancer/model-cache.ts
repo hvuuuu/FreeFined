@@ -127,7 +127,7 @@ export async function loadModelBufferWithCache(url: string): Promise<ModelLoadRe
       buffer: null,
       cached: false,
       warning:
-        "Model file could not be loaded. Falling back to lightweight browser enhancement.",
+        "Model file could not be loaded. Falling back to a lightweight browser path.",
     }
   }
 }

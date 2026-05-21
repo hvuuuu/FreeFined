@@ -10,6 +10,10 @@ const MODEL_URLS = {
     "https://huggingface.co/qualcomm/Real-ESRGAN-General-x4v3/resolve/e01c7edcbe5dc97b6a8f25507e639b43df49fa76/Real-ESRGAN-General-x4v3.onnx?download=true",
   "super-resolution-lite":
     "https://huggingface.co/onnxmodelzoo/super-resolution-10/resolve/main/super-resolution-10.onnx?download=true",
+  "birefnet-lite-fp16":
+    "https://huggingface.co/onnx-community/BiRefNet_lite-ONNX/resolve/main/onnx/model_fp16.onnx?download=true",
+  u2netp:
+    "https://huggingface.co/Heliosoph/u2net-onnx/resolve/main/u2netp.onnx?download=true",
 } as const;
 
 type ModelId = keyof typeof MODEL_URLS;
@@ -18,6 +22,8 @@ const LOCAL_MODEL_FILES: Record<ModelId, string> = {
   "real-esrgan-x4": "real-esrgan-x4.onnx",
   "realesrgan-general-x4v3": "realesrgan-general-x4v3.onnx",
   "super-resolution-lite": "super-resolution-lite.onnx",
+  "birefnet-lite-fp16": "birefnet-lite-fp16.onnx",
+  u2netp: "u2netp.onnx",
 };
 
 function isModelId(value: string): value is ModelId {

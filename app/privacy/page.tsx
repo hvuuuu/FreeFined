@@ -5,22 +5,22 @@ import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
   title: "Privacy",
   description:
-    "FreeFined privacy details for browser image processing, local previews, model loading, and production analytics.",
+    "FreeFined privacy details for browser image enhancement, background removal, local previews, model loading, and production analytics.",
   path: "/privacy",
 });
 
 const privacySections = [
   {
     title: "Image handling",
-    body: "When you choose an image, FreeFined reads the file in your browser to validate its type and dimensions, create a preview, and run enhancement in a browser worker. The app does not require uploading the image to an application backend for processing.",
+    body: "When you choose an image, FreeFined reads the file in your browser to validate its type and dimensions, create a preview, and run enhancement or background removal in a browser worker. The app does not require uploading the image to an application backend for processing.",
   },
   {
     title: "Local previews and downloads",
-    body: "Preview and enhanced-image URLs are temporary browser object URLs. They are cleared when you reset the workflow, select another file, leave the page, or close the tab.",
+    body: "Preview, enhanced-image, and transparent PNG URLs are temporary browser object URLs. They are cleared when you reset the workflow, select another file, leave the page, or close the tab.",
   },
   {
     title: "Model loading",
-    body: "The browser may request AI model files through FreeFined model endpoints or pinned upstream model URLs. Those requests are for loading enhancement assets, not for storing your uploaded image.",
+    body: "The browser may request AI model files through FreeFined model endpoints or pinned upstream model URLs. Those requests are for loading enhancement and background-removal assets, not for storing your uploaded image.",
   },
   {
     title: "Analytics",
@@ -32,16 +32,17 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 justify-center flex-col gap-10 px-4 py-6 sm:px-6 sm:py-10 md:py-14 lg:py-20">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 justify-center flex-col gap-6 p-4 sm:p-6 lg:py-8">
         <section className="space-y-4">
           <p className="text-sm font-medium text-red-400">
-            Last updated May 18, 2026
+            Last updated May 21, 2026
           </p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Privacy
           </h1>
           <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
-            FreeFined is designed as a browser-first image enhancement tool.
+            FreeFined is designed as a browser-first image enhancement and
+            background removal tool.
             This page explains what happens when you use the app.
           </p>
         </section>

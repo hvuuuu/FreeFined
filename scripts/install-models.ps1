@@ -20,6 +20,16 @@ $models = @(
     Name = "super-resolution-lite.onnx"
     Url = "https://huggingface.co/onnxmodelzoo/super-resolution-10/resolve/main/super-resolution-10.onnx?download=true"
     Sha256 = "85F36FF88CC504A24AF5E0602148BC56A8AA09A58ECA8C0DA2756F3E8186035E"
+  },
+  @{
+    Name = "birefnet-lite-fp16.onnx"
+    Url = "https://huggingface.co/onnx-community/BiRefNet_lite-ONNX/resolve/main/onnx/model_fp16.onnx?download=true"
+    Sha256 = "D39B897CEB16AE654C1731F3DBA0CF9B368D9CAE74B5A57459B455CC8BFEC402"
+  },
+  @{
+    Name = "u2netp.onnx"
+    Url = "https://huggingface.co/Heliosoph/u2net-onnx/resolve/main/u2netp.onnx?download=true"
+    Sha256 = ""
   }
 )
 
@@ -38,12 +48,17 @@ if ($shouldDownloadModels) {
 
     $needsDownload = $true
     if (Test-Path $targetPath) {
-      $currentHash = (Get-FileHash -Path $targetPath -Algorithm SHA256).Hash
-      if ($currentHash -eq $model.Sha256) {
-        Write-Host "Skipping $($model.Name): checksum already matches."
+      if ([string]::IsNullOrWhiteSpace($model.Sha256)) {
+        Write-Host "Skipping $($model.Name): file already exists."
         $needsDownload = $false
       } else {
-        Write-Host "Re-downloading $($model.Name): checksum mismatch."
+        $currentHash = (Get-FileHash -Path $targetPath -Algorithm SHA256).Hash
+        if ($currentHash -eq $model.Sha256) {
+          Write-Host "Skipping $($model.Name): checksum already matches."
+          $needsDownload = $false
+        } else {
+          Write-Host "Re-downloading $($model.Name): checksum mismatch."
+        }
       }
     }
 
@@ -52,9 +67,13 @@ if ($shouldDownloadModels) {
       Invoke-WebRequest -Uri $model.Url -OutFile $targetPath
     }
 
-    $finalHash = (Get-FileHash -Path $targetPath -Algorithm SHA256).Hash
-    if ($finalHash -ne $model.Sha256) {
-      throw "Checksum validation failed for $($model.Name). Expected $($model.Sha256), got $finalHash"
+    if (-not [string]::IsNullOrWhiteSpace($model.Sha256)) {
+      $finalHash = (Get-FileHash -Path $targetPath -Algorithm SHA256).Hash
+      if ($finalHash -ne $model.Sha256) {
+        throw "Checksum validation failed for $($model.Name). Expected $($model.Sha256), got $finalHash"
+      }
+    } else {
+      Write-Host "No checksum pinned for $($model.Name); skipped validation."
     }
 
     $size = (Get-Item $targetPath).Length

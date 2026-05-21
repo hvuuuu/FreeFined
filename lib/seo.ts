@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 export const siteConfig = {
   name: "FreeFined",
   url: "https://freefined.vercel.app",
-  title: "FreeFined - Free AI Image Enhancer",
+  title: "FreeFined - Free AI Image Enhancer and Background Remover",
   description:
-    "FreeFined is a free browser-based AI image enhancer for upscaling, denoising, and sharpening JPG, PNG, and WEBP images without an account.",
+    "FreeFined is a free browser-based AI image enhancer and background remover for JPG, PNG, and WEBP images without an account.",
   creator: "Vuntra",
   ogImagePath: "/opengraph-image",
   googleSiteVerification:
@@ -17,6 +17,9 @@ export const siteConfig = {
     "free image enhancer",
     "AI image upscaler",
     "photo enhancer",
+    "free background remover",
+    "AI background remover",
+    "transparent image background remover",
     "image upscaling",
     "browser image enhancer",
     "no account image enhancer",
@@ -29,19 +32,19 @@ export const siteConfig = {
 export const sitemapRoutes = [
   {
     path: "/",
-    lastModified: "2026-05-18",
+    lastModified: "2026-05-21",
     changeFrequency: "weekly",
     priority: 1,
   },
   {
     path: "/about",
-    lastModified: "2026-05-18",
+    lastModified: "2026-05-21",
     changeFrequency: "monthly",
     priority: 0.7,
   },
   {
     path: "/privacy",
-    lastModified: "2026-05-18",
+    lastModified: "2026-05-21",
     changeFrequency: "monthly",
     priority: 0.6,
   },
@@ -78,7 +81,7 @@ export function buildPageMetadata({
           url: siteConfig.ogImagePath,
           width: 1200,
           height: 630,
-          alt: "FreeFined AI image enhancer",
+          alt: "FreeFined AI image enhancer and background remover",
           type: "image/png",
         },
       ],

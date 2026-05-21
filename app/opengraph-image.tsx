@@ -1,7 +1,7 @@
 import { siteConfig } from "@/lib/seo";
 import { ImageResponse } from "next/og";
 
-export const alt = "FreeFined - Free AI Image Enhancer";
+export const alt = "FreeFined - Free AI Image Enhancer and Background Remover";
 export const size = {
   width: 1200,
   height: 630,
@@ -57,7 +57,7 @@ export default function Image() {
               {siteConfig.name}
             </div>
             <div style={{ color: "#d4d4d4", fontSize: 24 }}>
-              Browser-based AI image enhancement
+              Browser-based AI image tools
             </div>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function Image() {
               letterSpacing: 0,
             }}
           >
-            Free AI image enhancer for sharper, cleaner photos
+            Free AI image enhancer and background remover
           </div>
           <div
             style={{
@@ -117,7 +117,7 @@ export default function Image() {
           }}
         >
           <span>{siteConfig.url.replace("https://", "")}</span>
-          <span>Upscale. Denoise. Sharpen.</span>
+          <span>Upscale. Denoise. Remove backgrounds.</span>
         </div>
       </div>
     ),

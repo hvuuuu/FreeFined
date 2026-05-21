@@ -1,69 +1,139 @@
 "use client";
 
+import { BackgroundRemovalOptions } from "@/components/background-removal-options";
 import { EnhancementOptions } from "@/components/enhancement-options";
 import { Header } from "@/components/header";
 import { PreviewSection } from "@/components/preview-section";
 import { ProcessingState } from "@/components/processing-state";
 import { SiteFooter } from "@/components/site-footer";
+import { ToolModeSelector } from "@/components/tool-mode-selector";
 import { UploadZone, type UploadSelection } from "@/components/upload-zone";
 import {
+  BACKGROUND_REMOVAL_MODEL_SPECS,
+  MODEL_SPECS,
+  resolveBackgroundRemovalPresetMode,
   resolvePresetMode,
+  type BackgroundRemovalMode,
+  type BackgroundRemovalPreset,
   type EnhancementMode,
   type EnhancementPreset,
+  type ToolMode,
 } from "@/lib/enhancer/models";
 import {
+  createBackgroundRemovalRuntimePlan,
   createRuntimePlan,
   detectRuntimeCapabilities,
+  probeWebGpuLimits,
+  type BackgroundRemovalRuntimePlan,
+  type GpuLimitsProbe,
   type InferenceBackend,
   type RuntimeCapabilities,
+  type RuntimeImageSize,
   type RuntimePlan,
 } from "@/lib/enhancer/runtime-plan";
-import type { WorkerResponse } from "@/lib/enhancer/worker-protocol";
+import type {
+  BackgroundRemovalWorkerRequest,
+  ProcessingMode,
+  WorkerResponse,
+} from "@/lib/enhancer/worker-protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppState = "idle" | "ready" | "processing" | "done";
 
-const DEFAULT_MODE: EnhancementMode = "realesrgan-general-x4v3";
-const DEFAULT_PRESET: EnhancementPreset = "auto";
-const WORKER_TIMEOUT_MS = 90_000;
+const DEFAULT_TOOL_MODE: ToolMode = "enhance";
+const DEFAULT_ENHANCEMENT_MODE: EnhancementMode = "realesrgan-general-x4v3";
+const DEFAULT_ENHANCEMENT_PRESET: EnhancementPreset = "auto";
+const DEFAULT_BACKGROUND_REMOVAL_MODE: BackgroundRemovalMode = "u2netp";
+const DEFAULT_BACKGROUND_REMOVAL_PRESET: BackgroundRemovalPreset = "auto";
+const ENHANCEMENT_WORKER_TIMEOUT_MS = 90_000;
+const BACKGROUND_WORKER_TIMEOUT_MS = 120_000;
 
 function resolveModeForPreset(
   preset: EnhancementPreset,
   runtimePlan: RuntimePlan | null,
 ): EnhancementMode {
-  const autoMode = runtimePlan?.mode ?? DEFAULT_MODE;
+  const autoMode = runtimePlan?.mode ?? DEFAULT_ENHANCEMENT_MODE;
   return resolvePresetMode(preset, autoMode);
+}
+
+function resolveBackgroundModeForPreset(
+  preset: BackgroundRemovalPreset,
+  runtimePlan: BackgroundRemovalRuntimePlan | null,
+): BackgroundRemovalMode {
+  const autoMode = runtimePlan?.mode ?? DEFAULT_BACKGROUND_REMOVAL_MODE;
+  return resolveBackgroundRemovalPresetMode(preset, autoMode);
+}
+
+function isEnhancementMode(mode: ProcessingMode): mode is EnhancementMode {
+  return mode in MODEL_SPECS;
+}
+
+function isBackgroundRemovalMode(
+  mode: ProcessingMode,
+): mode is BackgroundRemovalMode {
+  return mode in BACKGROUND_REMOVAL_MODEL_SPECS;
+}
+
+function createRequestId() {
+  return typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export default function HomePage() {
   const [state, setState] = useState<AppState>("idle");
+  const [toolMode, setToolMode] = useState<ToolMode>(DEFAULT_TOOL_MODE);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [enhancedUrl, setEnhancedUrl] = useState<string | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
-  const [mode, setMode] = useState<EnhancementMode>(DEFAULT_MODE);
-  const [preset, setPreset] = useState<EnhancementPreset>(DEFAULT_PRESET);
+  const [imageSize, setImageSize] = useState<RuntimeImageSize | null>(null);
+  const [enhancementMode, setEnhancementMode] = useState<EnhancementMode>(
+    DEFAULT_ENHANCEMENT_MODE,
+  );
+  const [enhancementPreset, setEnhancementPreset] = useState<EnhancementPreset>(
+    DEFAULT_ENHANCEMENT_PRESET,
+  );
+  const [backgroundRemovalMode, setBackgroundRemovalMode] =
+    useState<BackgroundRemovalMode>(DEFAULT_BACKGROUND_REMOVAL_MODE);
+  const [backgroundRemovalPreset, setBackgroundRemovalPreset] =
+    useState<BackgroundRemovalPreset>(DEFAULT_BACKGROUND_REMOVAL_PRESET);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("Preparing enhancement...");
   const [runtimeCapabilities, setRuntimeCapabilities] =
     useState<RuntimeCapabilities | null>(null);
   const [runtimePlan, setRuntimePlan] = useState<RuntimePlan | null>(null);
+  const [backgroundRemovalRuntimePlan, setBackgroundRemovalRuntimePlan] =
+    useState<BackgroundRemovalRuntimePlan | null>(null);
   const [activeBackend, setActiveBackend] = useState<InferenceBackend | null>(
     null,
   );
   const [estimatedTime, setEstimatedTime] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [workerWarning, setWorkerWarning] = useState<string | null>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const enhanceWorkerRef = useRef<Worker | null>(null);
+  const backgroundWorkerRef = useRef<Worker | null>(null);
   const activeRequestIdRef = useRef<string | null>(null);
+  const activeToolModeRef = useRef<ToolMode>(DEFAULT_TOOL_MODE);
   const previewUrlRef = useRef<string | null>(null);
-  const enhancedUrlRef = useRef<string | null>(null);
+  const resultUrlRef = useRef<string | null>(null);
+  const gpuLimitsRef = useRef<GpuLimitsProbe | null>(null);
+  const [gpuLimitsReady, setGpuLimitsReady] = useState(false);
 
-  const stopWorker = useCallback(() => {
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
+  const stopWorkers = useCallback(() => {
+    if (enhanceWorkerRef.current) {
+      enhanceWorkerRef.current.terminate();
+      enhanceWorkerRef.current = null;
     }
+    if (backgroundWorkerRef.current) {
+      backgroundWorkerRef.current.terminate();
+      backgroundWorkerRef.current = null;
+    }
+    activeRequestIdRef.current = null;
+  }, []);
+
+  const cancelActiveRequest = useCallback(() => {
     activeRequestIdRef.current = null;
   }, []);
 
@@ -78,20 +148,51 @@ export default function HomePage() {
     setPreviewUrl(nextUrl);
   }, []);
 
-  const updateEnhancedUrl = useCallback((nextUrl: string | null) => {
-    enhancedUrlRef.current = nextUrl;
-    setEnhancedUrl(nextUrl);
+  const updateResultUrl = useCallback((nextUrl: string | null) => {
+    resultUrlRef.current = nextUrl;
+    setResultUrl(nextUrl);
   }, []);
 
-  const getCurrentRuntimePlan = useCallback(() => {
-    const capabilities = detectRuntimeCapabilities();
-    const plan = createRuntimePlan(capabilities);
-    setRuntimeCapabilities(capabilities);
-    setRuntimePlan(plan);
-    setActiveBackend(plan.backend);
-    setEstimatedTime(plan.expectedTime);
-    return plan;
-  }, []);
+  const getCurrentRuntimePlans = useCallback(
+    (nextImageSize: RuntimeImageSize | null = null) => {
+      const capabilities = detectRuntimeCapabilities();
+      const nextRuntimePlan = createRuntimePlan(capabilities);
+      const nextBackgroundPlan = createBackgroundRemovalRuntimePlan(
+        capabilities,
+        nextImageSize,
+        gpuLimitsRef.current,
+      );
+
+      setRuntimeCapabilities(capabilities);
+      setRuntimePlan(nextRuntimePlan);
+      setBackgroundRemovalRuntimePlan(nextBackgroundPlan);
+
+      return {
+        capabilities,
+        runtimePlan: nextRuntimePlan,
+        backgroundRemovalRuntimePlan: nextBackgroundPlan,
+      };
+    },
+    [],
+  );
+
+  const updateActiveRuntimeSummary = useCallback(
+    (
+      nextToolMode: ToolMode,
+      plans: {
+        runtimePlan: RuntimePlan;
+        backgroundRemovalRuntimePlan: BackgroundRemovalRuntimePlan;
+      },
+    ) => {
+      const activePlan =
+        nextToolMode === "enhance"
+          ? plans.runtimePlan
+          : plans.backgroundRemovalRuntimePlan;
+      setActiveBackend(activePlan.backend);
+      setEstimatedTime(activePlan.expectedTime);
+    },
+    [],
+  );
 
   const handleWorkerMessage = useCallback(
     (response: WorkerResponse) => {
@@ -99,8 +200,18 @@ export default function HomePage() {
         return;
       }
 
+      const runningToolMode = activeToolModeRef.current;
+
       if (response.type === "ready") {
-        setMode(response.mode);
+        if (runningToolMode === "enhance" && isEnhancementMode(response.mode)) {
+          setEnhancementMode(response.mode);
+        }
+        if (
+          runningToolMode === "remove-background" &&
+          isBackgroundRemovalMode(response.mode)
+        ) {
+          setBackgroundRemovalMode(response.mode);
+        }
         setActiveBackend(response.backend);
         setEstimatedTime(response.estimatedTime);
         setWorkerWarning(response.warning);
@@ -117,194 +228,445 @@ export default function HomePage() {
         setWorkerWarning(response.error);
         setState("ready");
         setProgress(0);
-        stopWorker();
+        cancelActiveRequest();
         return;
       }
 
       if (response.type === "done") {
         const outputUrl = URL.createObjectURL(response.blob);
-        revokeObjectUrl(enhancedUrlRef.current);
-        updateEnhancedUrl(outputUrl);
-        setMode(response.mode);
+        revokeObjectUrl(resultUrlRef.current);
+        updateResultUrl(outputUrl);
+
+        if (runningToolMode === "enhance" && isEnhancementMode(response.mode)) {
+          setEnhancementMode(response.mode);
+        }
+        if (
+          runningToolMode === "remove-background" &&
+          isBackgroundRemovalMode(response.mode)
+        ) {
+          setBackgroundRemovalMode(response.mode);
+        }
+
         setActiveBackend(response.backend);
         setWorkerWarning(response.warning);
         setProgress(100);
-        setStage("Enhancement complete");
+        setStage(
+          runningToolMode === "enhance"
+            ? "Enhancement complete"
+            : "Background removed",
+        );
         setState("done");
-        stopWorker();
+        cancelActiveRequest();
       }
     },
-    [revokeObjectUrl, stopWorker, updateEnhancedUrl],
+    [revokeObjectUrl, cancelActiveRequest, updateResultUrl],
   );
 
   useEffect(() => {
-    getCurrentRuntimePlan();
-  }, [getCurrentRuntimePlan]);
+    const plans = getCurrentRuntimePlans(imageSize);
+    updateActiveRuntimeSummary(toolMode, plans);
+  }, [getCurrentRuntimePlans, gpuLimitsReady, imageSize, toolMode, updateActiveRuntimeSummary]);
 
   useEffect(() => {
-    setMode(resolveModeForPreset(preset, runtimePlan));
-  }, [preset, runtimePlan]);
+    let cancelled = false;
+    probeWebGpuLimits().then((result) => {
+      if (!cancelled) {
+        gpuLimitsRef.current = result;
+        setGpuLimitsReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setEnhancementMode(resolveModeForPreset(enhancementPreset, runtimePlan));
+  }, [enhancementPreset, runtimePlan]);
+
+  useEffect(() => {
+    setBackgroundRemovalMode(
+      resolveBackgroundModeForPreset(
+        backgroundRemovalPreset,
+        backgroundRemovalRuntimePlan,
+      ),
+    );
+  }, [backgroundRemovalPreset, backgroundRemovalRuntimePlan]);
 
   useEffect(() => {
     return () => {
-      stopWorker();
+      stopWorkers();
       revokeObjectUrl(previewUrlRef.current);
-      revokeObjectUrl(enhancedUrlRef.current);
+      revokeObjectUrl(resultUrlRef.current);
     };
-  }, [revokeObjectUrl, stopWorker]);
+  }, [revokeObjectUrl, stopWorkers]);
 
-  const handleFileSelected = useCallback(
-    (selection: UploadSelection) => {
-      revokeObjectUrl(previewUrlRef.current);
-      revokeObjectUrl(enhancedUrlRef.current);
-      updatePreviewUrl(selection.previewUrl);
-      updateEnhancedUrl(null);
-      setSelectedFile(selection.file);
-      setFileName(selection.file.name);
-      setSizeWarning(selection.warning);
+  const handleToolModeChange = useCallback(
+    (nextToolMode: ToolMode) => {
+      if (nextToolMode === toolMode) {
+        return;
+      }
+
+      cancelActiveRequest();
+      revokeObjectUrl(resultUrlRef.current);
+      updateResultUrl(null);
+      setToolMode(nextToolMode);
+      activeToolModeRef.current = nextToolMode;
       setWorkerWarning(null);
       setProgress(0);
-      setStage("Ready to enhance");
+      setStage(
+        nextToolMode === "enhance"
+          ? "Ready to enhance"
+          : "Ready to remove background",
+      );
 
-      const plan = getCurrentRuntimePlan();
-      setMode(resolveModeForPreset(preset, plan));
-      setEstimatedTime(plan.expectedTime);
-      setActiveBackend(plan.backend);
-      setState("ready");
+      const plans = getCurrentRuntimePlans(imageSize);
+      updateActiveRuntimeSummary(nextToolMode, plans);
+      setState(selectedFile ? "ready" : "idle");
     },
     [
-      getCurrentRuntimePlan,
-      preset,
+      getCurrentRuntimePlans,
+      imageSize,
       revokeObjectUrl,
-      updateEnhancedUrl,
-      updatePreviewUrl,
+      selectedFile,
+      cancelActiveRequest,
+      toolMode,
+      updateActiveRuntimeSummary,
+      updateResultUrl,
     ],
   );
 
-  const handleEnhance = useCallback(() => {
+  const handleFileSelected = useCallback(
+    (selection: UploadSelection) => {
+      const nextImageSize = {
+        width: selection.width,
+        height: selection.height,
+      };
+
+      revokeObjectUrl(previewUrlRef.current);
+      revokeObjectUrl(resultUrlRef.current);
+      updatePreviewUrl(selection.previewUrl);
+      updateResultUrl(null);
+      setSelectedFile(selection.file);
+      setFileName(selection.file.name);
+      setImageSize(nextImageSize);
+      setSizeWarning(selection.warning);
+      setWorkerWarning(null);
+      setProgress(0);
+      setStage(
+        toolMode === "enhance"
+          ? "Ready to enhance"
+          : "Ready to remove background",
+      );
+
+      const plans = getCurrentRuntimePlans(nextImageSize);
+      setEnhancementMode(
+        resolveModeForPreset(enhancementPreset, plans.runtimePlan),
+      );
+      setBackgroundRemovalMode(
+        resolveBackgroundModeForPreset(
+          backgroundRemovalPreset,
+          plans.backgroundRemovalRuntimePlan,
+        ),
+      );
+      updateActiveRuntimeSummary(toolMode, plans);
+      setState("ready");
+    },
+    [
+      backgroundRemovalPreset,
+      enhancementPreset,
+      getCurrentRuntimePlans,
+      revokeObjectUrl,
+      toolMode,
+      updateActiveRuntimeSummary,
+      updatePreviewUrl,
+      updateResultUrl,
+    ],
+  );
+
+  const startEnhancement = useCallback(() => {
     if (!selectedFile) {
       return;
     }
 
-    const plan = runtimePlan ?? getCurrentRuntimePlan();
-    const resolvedMode = resolveModeForPreset(preset, plan);
-    const requestId =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    stopWorker();
-
-    const worker = new Worker(
-      new URL("../workers/enhance.worker.ts", import.meta.url),
+    const plans = getCurrentRuntimePlans(imageSize);
+    const resolvedMode = resolveModeForPreset(
+      enhancementPreset,
+      plans.runtimePlan,
     );
-    workerRef.current = worker;
+    const requestId = createRequestId();
+
+    cancelActiveRequest();
+
+    if (!enhanceWorkerRef.current) {
+      const worker = new Worker(
+        new URL("../workers/enhance.worker.ts", import.meta.url),
+      );
+
+      worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+        handleWorkerMessage(event.data);
+      };
+
+      worker.onerror = (event) => {
+        enhanceWorkerRef.current = null;
+        setWorkerWarning(
+          event.message
+            ? `Worker failed unexpectedly: ${event.message}`
+            : "Worker failed unexpectedly. Please try again.",
+        );
+        setState("ready");
+        setProgress(0);
+        cancelActiveRequest();
+      };
+
+      worker.onmessageerror = () => {
+        enhanceWorkerRef.current = null;
+        setWorkerWarning("Worker response could not be read. Please try again.");
+        setState("ready");
+        setProgress(0);
+        cancelActiveRequest();
+      };
+
+      enhanceWorkerRef.current = worker;
+    }
+
     activeRequestIdRef.current = requestId;
-
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      handleWorkerMessage(event.data);
-    };
-
-    worker.onerror = () => {
-      setWorkerWarning("Worker failed unexpectedly. Please try again.");
-      setState("ready");
-      setProgress(0);
-      stopWorker();
-    };
+    activeToolModeRef.current = "enhance";
 
     setProgress(0);
     setStage("Starting worker...");
     setWorkerWarning(null);
-    setEstimatedTime(plan.expectedTime);
-    setActiveBackend(plan.backend);
-    setMode(resolvedMode);
+    setEstimatedTime(plans.runtimePlan.expectedTime);
+    setActiveBackend(plans.runtimePlan.backend);
+    setEnhancementMode(resolvedMode);
+    setToolMode("enhance");
     setState("processing");
 
-    worker.postMessage({
+    enhanceWorkerRef.current.postMessage({
       type: "start",
       requestId,
       payload: {
         file: selectedFile,
         mode: resolvedMode,
-        backend: plan.backend,
-        timeoutMs: WORKER_TIMEOUT_MS,
-        allowLowQualityFallback: preset !== "quality",
+        backend: plans.runtimePlan.backend,
+        timeoutMs: ENHANCEMENT_WORKER_TIMEOUT_MS,
+        allowLowQualityFallback: enhancementPreset !== "quality",
       },
     });
   }, [
-    getCurrentRuntimePlan,
+    enhancementPreset,
+    getCurrentRuntimePlans,
     handleWorkerMessage,
-    preset,
-    runtimePlan,
+    imageSize,
     selectedFile,
-    stopWorker,
+    cancelActiveRequest,
+  ]);
+
+  const startBackgroundRemoval = useCallback(() => {
+    if (!selectedFile) {
+      return;
+    }
+
+    const plans = getCurrentRuntimePlans(imageSize);
+    const resolvedMode = resolveBackgroundModeForPreset(
+      backgroundRemovalPreset,
+      plans.backgroundRemovalRuntimePlan,
+    );
+    const requestId = createRequestId();
+
+    if (
+      resolvedMode === "birefnet-lite-fp16" &&
+      !plans.capabilities.hasWebGPU
+    ) {
+      setBackgroundRemovalMode("u2netp");
+      setBackgroundRemovalPreset("fast");
+      setActiveBackend("wasm");
+      setEstimatedTime("5-20 sec");
+      setWorkerWarning(
+        "BiRefNet Lite FP16 requires WebGPU. This browser can run U2Netp instead.",
+      );
+      return;
+    }
+
+    cancelActiveRequest();
+
+    if (!backgroundWorkerRef.current) {
+      const worker = new Worker(
+        new URL("../workers/remove-background.worker.ts", import.meta.url),
+      );
+
+      worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+        handleWorkerMessage(event.data);
+      };
+
+      worker.onerror = (event) => {
+        backgroundWorkerRef.current = null;
+        setWorkerWarning(
+          event.message
+            ? `Worker failed unexpectedly: ${event.message}`
+            : "Worker failed unexpectedly. Please try again.",
+        );
+        setState("ready");
+        setProgress(0);
+        cancelActiveRequest();
+      };
+
+      worker.onmessageerror = () => {
+        backgroundWorkerRef.current = null;
+        setWorkerWarning("Worker response could not be read. Please try again.");
+        setState("ready");
+        setProgress(0);
+        cancelActiveRequest();
+      };
+
+      backgroundWorkerRef.current = worker;
+    }
+
+    activeRequestIdRef.current = requestId;
+    activeToolModeRef.current = "remove-background";
+
+    setProgress(0);
+    setStage("Starting worker...");
+    setWorkerWarning(null);
+    setEstimatedTime(plans.backgroundRemovalRuntimePlan.expectedTime);
+    setActiveBackend(plans.backgroundRemovalRuntimePlan.backend);
+    setBackgroundRemovalMode(resolvedMode);
+    setToolMode("remove-background");
+    setState("processing");
+
+    const request: BackgroundRemovalWorkerRequest = {
+      type: "start",
+      requestId,
+      payload: {
+        file: selectedFile,
+        mode: resolvedMode,
+        backend: plans.backgroundRemovalRuntimePlan.backend,
+        timeoutMs: BACKGROUND_WORKER_TIMEOUT_MS,
+        allowFallback: true,
+      },
+    };
+
+    backgroundWorkerRef.current.postMessage(request);
+  }, [
+    backgroundRemovalPreset,
+    getCurrentRuntimePlans,
+    handleWorkerMessage,
+    imageSize,
+    selectedFile,
+    cancelActiveRequest,
   ]);
 
   const handleCancel = useCallback(() => {
-    stopWorker();
+    cancelActiveRequest();
     setProgress(0);
     setStage("Cancelled");
-    setWorkerWarning("Enhancement cancelled.");
+    setWorkerWarning(
+      toolMode === "enhance"
+        ? "Enhancement cancelled."
+        : "Background removal cancelled.",
+    );
     setState("ready");
-  }, [stopWorker]);
+  }, [cancelActiveRequest, toolMode]);
 
   const handleReset = useCallback(() => {
-    stopWorker();
+    cancelActiveRequest();
     revokeObjectUrl(previewUrlRef.current);
-    revokeObjectUrl(enhancedUrlRef.current);
+    revokeObjectUrl(resultUrlRef.current);
     updatePreviewUrl(null);
-    updateEnhancedUrl(null);
+    updateResultUrl(null);
     setSelectedFile(null);
     setFileName("");
+    setImageSize(null);
     setProgress(0);
-    setStage("Preparing enhancement...");
+    setStage(
+      toolMode === "enhance"
+        ? "Preparing enhancement..."
+        : "Preparing background removal...",
+    );
     setSizeWarning(null);
     setWorkerWarning(null);
-    setPreset(DEFAULT_PRESET);
-    setMode(resolveModeForPreset(DEFAULT_PRESET, runtimePlan));
-    setActiveBackend(runtimePlan?.backend ?? null);
-    setEstimatedTime(runtimePlan?.expectedTime ?? null);
+    setEnhancementPreset(DEFAULT_ENHANCEMENT_PRESET);
+    setBackgroundRemovalPreset(DEFAULT_BACKGROUND_REMOVAL_PRESET);
+
+    const plans = getCurrentRuntimePlans(null);
+    setEnhancementMode(
+      resolveModeForPreset(DEFAULT_ENHANCEMENT_PRESET, plans.runtimePlan),
+    );
+    setBackgroundRemovalMode(
+      resolveBackgroundModeForPreset(
+        DEFAULT_BACKGROUND_REMOVAL_PRESET,
+        plans.backgroundRemovalRuntimePlan,
+      ),
+    );
+    updateActiveRuntimeSummary(toolMode, plans);
     setState("idle");
   }, [
+    getCurrentRuntimePlans,
     revokeObjectUrl,
-    runtimePlan,
-    stopWorker,
-    updateEnhancedUrl,
+    cancelActiveRequest,
+    toolMode,
+    updateActiveRuntimeSummary,
     updatePreviewUrl,
+    updateResultUrl,
   ]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Subtle ambient background */}
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[480px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent"
       />
-      <Header onReset={handleReset}/>
-      <main className="mx-auto flex w-full max-w-7xl flex-1 items-center justify-center px-4 py-6 sm:px-6 sm:py-10 md:py-14 lg:py-20">
-        <div className="w-full max-w-7xl transition-all duration-500">
-          {state === "idle" && (
-            <UploadZone onFileSelected={handleFileSelected} />
-          )}
+      <Header onReset={handleReset} />
+      <main className="mx-auto flex w-full max-w-7xl flex-1 items-center justify-center p-4 sm:p-6 lg:py-8">
+        <div className="w-full max-w-7xl space-y-4 transition-all duration-500 sm:space-y-5 ">
+          <ToolModeSelector
+            value={toolMode}
+            disabled={state === "processing"}
+            onChange={handleToolModeChange}
+          />
 
-          {state === "ready" && previewUrl && (
-            <EnhancementOptions
-              previewUrl={previewUrl}
-              fileName={fileName}
-              mode={mode}
-              preset={preset}
-              runtimePlan={runtimePlan}
-              capabilities={runtimeCapabilities}
-              sizeWarning={sizeWarning}
-              workerWarning={workerWarning}
-              onPresetChange={setPreset}
-              onEnhance={handleEnhance}
+          {state === "idle" && (
+            <UploadZone
+              toolMode={toolMode}
               onFileSelected={handleFileSelected}
             />
           )}
 
+          {state === "ready" &&
+            previewUrl &&
+            (toolMode === "enhance" ? (
+              <EnhancementOptions
+                previewUrl={previewUrl}
+                fileName={fileName}
+                mode={enhancementMode}
+                preset={enhancementPreset}
+                runtimePlan={runtimePlan}
+                capabilities={runtimeCapabilities}
+                sizeWarning={sizeWarning}
+                workerWarning={workerWarning}
+                onPresetChange={setEnhancementPreset}
+                onEnhance={startEnhancement}
+                onFileSelected={handleFileSelected}
+              />
+            ) : (
+              <BackgroundRemovalOptions
+                previewUrl={previewUrl}
+                fileName={fileName}
+                mode={backgroundRemovalMode}
+                preset={backgroundRemovalPreset}
+                runtimePlan={backgroundRemovalRuntimePlan}
+                capabilities={runtimeCapabilities}
+                sizeWarning={sizeWarning}
+                workerWarning={workerWarning}
+                onPresetChange={setBackgroundRemovalPreset}
+                onRemoveBackground={startBackgroundRemoval}
+                onFileSelected={handleFileSelected}
+              />
+            ))}
+
           {state === "processing" && (
             <ProcessingState
+              toolMode={toolMode}
               progress={progress}
               stage={stage}
               backend={activeBackend}
@@ -313,11 +675,14 @@ export default function HomePage() {
             />
           )}
 
-          {state === "done" && previewUrl && enhancedUrl && (
+          {state === "done" && previewUrl && resultUrl && (
             <PreviewSection
+              toolMode={toolMode}
               originalUrl={previewUrl}
-              enhancedUrl={enhancedUrl}
-              mode={mode}
+              resultUrl={resultUrl}
+              enhancementMode={enhancementMode}
+              backgroundRemovalMode={backgroundRemovalMode}
+              workerWarning={workerWarning}
               fileName={fileName}
               onReset={handleReset}
             />

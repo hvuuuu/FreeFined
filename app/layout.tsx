@@ -3,6 +3,7 @@ import { absoluteUrl, siteConfig } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,7 +62,7 @@ export const metadata: Metadata = {
         url: siteConfig.ogImagePath,
         width: 1200,
         height: 630,
-        alt: "FreeFined AI image enhancer",
+        alt: "FreeFined AI image enhancer and background remover",
         type: "image/png",
       },
     ],
@@ -100,8 +101,10 @@ const structuredData = {
       screenshot: absoluteUrl(siteConfig.ogImagePath),
       featureList: [
         "Browser-based image enhancement",
+        "Browser-based background removal",
         "AI-powered upscaling",
         "Denoising and sharpening",
+        "Transparent image downloads",
         "JPG, PNG, and WEBP uploads",
         "No account required",
       ],
@@ -127,19 +130,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-background">
-      <head>
-        <script
+    <html lang="en" className="bg-background" suppressHydrationWarning>
+      <body
+        suppressHydrationWarning
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+      >
+        <Script
           id="structured-data"
           type="application/ld+json"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
           }}
         />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
-      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
