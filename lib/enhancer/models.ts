@@ -3,7 +3,7 @@ export type EnhancementMode =
   | "realesrgan-general-x4v3"
   | "super-resolution-lite";
 
-export type ToolMode = "enhance" | "remove-background";
+export type ToolMode = "enhance" | "remove-background" | "convert";
 
 export type EnhancementPreset =
   | "auto"

@@ -1,19 +1,24 @@
 # FreeFined
 
-FreeFined is a free, browser-first AI image tool built with Next.js. It lets users upload an image, enhance it, or remove its background with client-side ONNX inference when available, then download the result without creating an account.
+FreeFined is a free, browser-first AI image tool built with Next.js. It lets users upload an image, enhance it, remove its background with client-side ONNX inference, or convert its format locally, then download the result without creating an account.
 
 ## Highlights
 
-- One-click image upload for JPG, PNG, and WEBP files up to 10 MB.
-- Browser-safe size checks with a warning above 3000 px and a hard limit above 6000 px.
-- Auto runtime planning across WebGPU, WebGL, and WASM.
-- Enhancement presets for Auto, Quality, Balanced, and Fast output.
-- Background removal presets for Auto, Quality, and Fast transparent PNG output.
-- ONNX model loading with Cache API and IndexedDB caching in the browser.
-- Worker-based image processing so the UI stays responsive during enhancement and background removal.
-- Built-in fallback paths when a model cannot load or initialize.
-- Before/after enhancement comparison, transparent background preview, and direct result download.
-- SEO metadata, sitemap, robots config, and production-only Vercel Analytics.
+- **One-click image upload** for JPG, PNG, WEBP, AVIF, and HEIC files up to 10 MB.
+- **On-the-fly HEIC decoding** via `heic2any` directly in the browser, auto-converting iOS photos to PNG for instant editing.
+- **Client-side image conversion** supporting PNG, JPEG, WebP, and AVIF target formats using HTML5 Canvas.
+- **Compression quality controls** (10% to 100% slider) for formats supporting lossy compression (JPEG & WebP).
+- **Smart transparency handling** that auto-fills transparent background regions with solid white when converting to JPEG.
+- **Feature support detection** to dynamically check browser compatibility for next-gen formats (like AVIF/WebP).
+- **Browser-safe size checks** with a warning above 3000 px and a hard limit above 6000 px.
+- **Auto runtime planning** for AI models across WebGPU, WebGL, and WASM.
+- **Enhancement presets** for Auto, Quality, Balanced, and Fast output.
+- **Background removal presets** for Auto, Quality, and Fast transparent PNG output.
+- **ONNX model loading** with Cache API and IndexedDB caching in the browser.
+- **Worker-based image processing** so the UI stays responsive during model inference (enhancement and background removal).
+- **Built-in fallback paths** when a model cannot load or initialize (e.g. falling back to canvas filters or lightweight models).
+- **Interactive features** including before/after enhancement comparison, transparent background preview, and direct result download.
+- **SEO-optimized** with sitemap, robots config, metadata, and production-only Vercel Analytics.
 
 ## Tech Stack
 
@@ -140,6 +145,6 @@ This writes pnpm's build approvals to `pnpm-workspace.yaml`. Keep that file in t
 
 ## Notes
 
-- Processing happens in a browser worker after the image is selected.
-- Uploaded images are not sent to an application backend for processing.
-- The model API route only proxies ONNX model files from the pinned upstream URLs.
+- **Client-Side execution**: Image enhancement and background removal processing run inside a browser Web Worker to keep the UI responsive, while file conversion runs instantly on the main thread using the HTML5 Canvas API.
+- **Privacy First**: Uploaded images are never sent to a remote backend; all conversion, decoding, enhancement, and background removal are done locally in your browser.
+- **Model Proxying**: The Next.js API route only proxies ONNX model files from pinned upstream CDN URLs to ensure reliable delivery and browser caching.

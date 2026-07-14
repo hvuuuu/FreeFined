@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import type { ToolMode } from "@/lib/enhancer/models";
 import { cn } from "@/lib/utils";
-import { Scissors, Wand2, type LucideIcon } from "lucide-react";
+import { Scissors, Wand2, RefreshCw, type LucideIcon } from "lucide-react";
 
 interface ToolModeSelectorProps {
   value: ToolMode;
@@ -18,6 +18,7 @@ const TOOL_OPTIONS: Array<{
 }> = [
   { id: "enhance", label: "Enhance", Icon: Wand2 },
   { id: "remove-background", label: "Remove BG", Icon: Scissors },
+  { id: "convert", label: "Convert", Icon: RefreshCw },
 ];
 
 export function ToolModeSelector({
@@ -29,7 +30,7 @@ export function ToolModeSelector({
     <div
       role="tablist"
       aria-label="Image tool"
-      className="mx-auto grid w-full max-w-sm grid-cols-2 gap-1 rounded-lg border border-border/70 bg-card/70 p-1 shadow-sm"
+      className="mx-auto grid w-full max-w-md grid-cols-3 gap-1 rounded-lg border border-border/70 bg-card/70 p-1 shadow-sm"
     >
       {TOOL_OPTIONS.map((option) => {
         const isSelected = value === option.id;

@@ -44,6 +44,10 @@ function buildDownloadFileName(fileName: string, toolMode: ToolMode) {
   const baseName = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName
   const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : ".png"
 
+  if (toolMode === "convert") {
+    return fileName
+  }
+
   if (toolMode === "remove-background") {
     return `${baseName}-no-bg.png`
   }
@@ -129,10 +133,15 @@ export function PreviewSection({
   }, [])
 
   const isBackgroundRemoval = toolMode === "remove-background"
-  const title = isBackgroundRemoval
+  const isConvert = toolMode === "convert"
+  const title = isConvert
+    ? "Conversion complete"
+    : isBackgroundRemoval
     ? "Background removed"
     : "Enhancement complete"
-  const downloadLabel = isBackgroundRemoval
+  const downloadLabel = isConvert
+    ? "Download Converted"
+    : isBackgroundRemoval
     ? "Download Transparent"
     : "Download Enhanced"
 
@@ -141,7 +150,7 @@ export function PreviewSection({
       <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
               <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
             </div>
             <h2 className="text-base font-semibold sm:text-lg">{title}</h2>
@@ -193,6 +202,77 @@ export function PreviewSection({
 
           <p className="text-center text-xs text-muted-foreground sm:text-sm">
             Model used: {BACKGROUND_REMOVAL_MODEL_SPECS[backgroundRemovalMode].label}
+          </p>
+        </div>
+      ) : isConvert ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <Badge
+              variant="secondary"
+              className="bg-slate-500/15 text-xs text-slate-700 ring-1 ring-slate-500/30 hover:bg-slate-500/20 dark:text-slate-200 sm:text-sm"
+            >
+              Original
+            </Badge>
+            <Badge
+              variant="secondary"
+              className="bg-emerald-500/15 text-xs text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 sm:text-sm"
+            >
+              Converted
+            </Badge>
+          </div>
+
+          <Card className="mx-auto w-full max-w-md overflow-hidden bg-muted ring-1 ring-red-500/20 sm:max-w-2xl">
+            <div className="relative aspect-4/3 w-full overflow-hidden sm:aspect-16/10">
+              <Image
+                src={resultUrl || "/placeholder.svg"}
+                alt="Converted image"
+                fill
+                sizes="(max-width: 640px) 100vw, 768px"
+                unoptimized
+                className="absolute inset-0 h-full w-full object-contain"
+              />
+
+              <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}>
+                <Image
+                  src={originalUrl || "/placeholder.svg"}
+                  alt="Original image"
+                  fill
+                  sizes="(max-width: 640px) 100vw, 768px"
+                  unoptimized
+                  className="absolute inset-0 h-full w-full object-contain"
+                />
+              </div>
+
+              <div
+                ref={sliderAreaRef}
+                role="slider"
+                tabIndex={0}
+                aria-label="Original and converted comparison"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(sliderValue)}
+                onKeyDown={handleKeyDown}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={releasePointer}
+                onPointerCancel={releasePointer}
+                className="absolute inset-0 z-20 cursor-ew-resize touch-none"
+              />
+
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 z-10"
+                style={{ left: `${sliderValue}%`, transform: "translateX(-50%)" }}
+              >
+                <div className="h-full w-0.5 bg-white/85 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]" />
+                <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-background/85 backdrop-blur-sm">
+                  <ArrowLeftRight className="h-4 w-4 text-foreground" />
+                </div>
+              </div>
+            </div>
+          </Card>
+          <p className="text-center text-xs text-muted-foreground sm:text-sm">
+            Converted in browser via HTML5 Canvas.
           </p>
         </div>
       ) : (

@@ -1,6 +1,7 @@
 "use client"
 
-import { Scissors, X, Wand2 } from "lucide-react"
+import { Scissors, X, Wand2, RefreshCw } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -33,11 +34,16 @@ export function ProcessingState({
   onCancel,
 }: ProcessingStateProps) {
   const isBackgroundRemoval = toolMode === "remove-background"
-  const Icon = isBackgroundRemoval ? Scissors : Wand2
-  const title = isBackgroundRemoval
+  const isConvert = toolMode === "convert"
+  const Icon = isConvert ? RefreshCw : (isBackgroundRemoval ? Scissors : Wand2)
+  const title = isConvert
+    ? "Converting your image"
+    : isBackgroundRemoval
     ? "Removing background"
     : "Enhancing your image"
-  const progressLabel = isBackgroundRemoval
+  const progressLabel = isConvert
+    ? "Conversion progress"
+    : isBackgroundRemoval
     ? "Background removal progress"
     : "Enhancement progress"
 
@@ -48,11 +54,13 @@ export function ProcessingState({
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div className="flex-1 space-y-1.5">
               <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Icon className="h-4 w-4 shrink-0 animate-pulse text-red-400 sm:h-5 sm:w-5" aria-hidden="true" />
+                <Icon className={cn("h-4 w-4 shrink-0 text-red-400 sm:h-5 sm:w-5", isConvert ? "animate-spin" : "animate-pulse")} aria-hidden="true" />
                 <span>{title}</span>
               </CardTitle>
               <CardDescription className="text-sm leading-relaxed sm:text-base">
-                Running on {formatBackendLabel(backend)}{estimatedTime ? ` (${estimatedTime})` : ""}.
+                {isConvert
+                  ? "Running client-side in your browser."
+                  : `Running on ${formatBackendLabel(backend)}${estimatedTime ? ` (${estimatedTime})` : ""}.`}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={onCancel} className="mt-1 shrink-0 cursor-pointer text-sm sm:mt-0">

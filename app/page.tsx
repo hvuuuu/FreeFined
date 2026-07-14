@@ -2,6 +2,7 @@
 
 import { BackgroundRemovalOptions } from "@/components/background-removal-options";
 import { EnhancementOptions } from "@/components/enhancement-options";
+import { ConversionOptions } from "@/components/conversion-options";
 import { Header } from "@/components/header";
 import { PreviewSection } from "@/components/preview-section";
 import { ProcessingState } from "@/components/processing-state";
@@ -99,6 +100,8 @@ export default function HomePage() {
     useState<BackgroundRemovalMode>(DEFAULT_BACKGROUND_REMOVAL_MODE);
   const [backgroundRemovalPreset, setBackgroundRemovalPreset] =
     useState<BackgroundRemovalPreset>(DEFAULT_BACKGROUND_REMOVAL_PRESET);
+  const [targetFormat, setTargetFormat] = useState<"png" | "jpeg" | "webp" | "avif">("png");
+  const [quality, setQuality] = useState<number>(90);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("Preparing enhancement...");
   const [runtimeCapabilities, setRuntimeCapabilities] =
@@ -184,6 +187,12 @@ export default function HomePage() {
         backgroundRemovalRuntimePlan: BackgroundRemovalRuntimePlan;
       },
     ) => {
+      if (nextToolMode === "convert") {
+        setActiveBackend(null);
+        setEstimatedTime("Instant");
+        return;
+      }
+
       const activePlan =
         nextToolMode === "enhance"
           ? plans.runtimePlan
@@ -317,7 +326,9 @@ export default function HomePage() {
       setStage(
         nextToolMode === "enhance"
           ? "Ready to enhance"
-          : "Ready to remove background",
+          : nextToolMode === "remove-background"
+          ? "Ready to remove background"
+          : "Ready to convert",
       );
 
       const plans = getCurrentRuntimePlans(imageSize);
@@ -356,7 +367,9 @@ export default function HomePage() {
       setStage(
         toolMode === "enhance"
           ? "Ready to enhance"
-          : "Ready to remove background",
+          : toolMode === "remove-background"
+          ? "Ready to remove background"
+          : "Ready to convert",
       );
 
       const plans = getCurrentRuntimePlans(nextImageSize);
@@ -556,6 +569,101 @@ export default function HomePage() {
     cancelActiveRequest,
   ]);
 
+  const startConversion = useCallback(() => {
+    if (!selectedFile) {
+      return;
+    }
+
+    const targetMime = `image/${targetFormat === "jpeg" ? "jpeg" : targetFormat}`;
+    const extension = targetFormat === "jpeg" ? "jpg" : targetFormat;
+    const requestId = createRequestId();
+    
+    cancelActiveRequest();
+
+    activeRequestIdRef.current = requestId;
+    activeToolModeRef.current = "convert";
+
+    setProgress(0);
+    setStage("Starting conversion...");
+    setWorkerWarning(null);
+    setToolMode("convert");
+    setState("processing");
+
+    const img = new window.Image();
+    img.src = previewUrl || "";
+
+    img.onload = () => {
+      if (activeRequestIdRef.current !== requestId) return;
+      
+      setProgress(30);
+      setStage("Drawing to canvas...");
+
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      
+      if (!ctx) {
+        setWorkerWarning("Could not create 2D canvas context.");
+        setState("ready");
+        setProgress(0);
+        cancelActiveRequest();
+        return;
+      }
+
+      if (targetFormat === "jpeg") {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      ctx.drawImage(img, 0, 0);
+      
+      setProgress(60);
+      setStage("Encoding image...");
+
+      const qualityValue = (targetFormat === "jpeg" || targetFormat === "webp")
+        ? quality / 100
+        : undefined;
+
+      canvas.toBlob(
+        (blob) => {
+          if (activeRequestIdRef.current !== requestId) return;
+          if (!blob) {
+            setWorkerWarning("Image conversion failed. The format might be unsupported in this browser.");
+            setState("ready");
+            setProgress(0);
+            cancelActiveRequest();
+            return;
+          }
+
+          setProgress(100);
+          setStage("Conversion complete");
+
+          const outputUrl = URL.createObjectURL(blob);
+          revokeObjectUrl(resultUrlRef.current);
+          updateResultUrl(outputUrl);
+
+          const lastDotIndex = fileName.lastIndexOf(".");
+          const baseName = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
+          setFileName(`${baseName}.${extension}`);
+
+          setState("done");
+          cancelActiveRequest();
+        },
+        targetMime,
+        qualityValue
+      );
+    };
+
+    img.onerror = () => {
+      if (activeRequestIdRef.current !== requestId) return;
+      setWorkerWarning("Failed to load image preview for conversion.");
+      setState("ready");
+      setProgress(0);
+      cancelActiveRequest();
+    };
+  }, [selectedFile, previewUrl, targetFormat, quality, fileName, revokeObjectUrl, updateResultUrl, cancelActiveRequest]);
+
   const handleCancel = useCallback(() => {
     cancelActiveRequest();
     setProgress(0);
@@ -581,12 +689,16 @@ export default function HomePage() {
     setStage(
       toolMode === "enhance"
         ? "Preparing enhancement..."
-        : "Preparing background removal...",
+        : toolMode === "remove-background"
+        ? "Preparing background removal..."
+        : "Preparing conversion...",
     );
     setSizeWarning(null);
     setWorkerWarning(null);
     setEnhancementPreset(DEFAULT_ENHANCEMENT_PRESET);
     setBackgroundRemovalPreset(DEFAULT_BACKGROUND_REMOVAL_PRESET);
+    setTargetFormat("png");
+    setQuality(90);
 
     const plans = getCurrentRuntimePlans(null);
     setEnhancementMode(
@@ -614,7 +726,7 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[480px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent"
+        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[480px] bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent"
       />
       <Header onReset={handleReset} />
       <main className="mx-auto flex w-full max-w-7xl flex-1 items-center justify-center p-4 sm:p-6 lg:py-8">
@@ -648,7 +760,7 @@ export default function HomePage() {
                 onEnhance={startEnhancement}
                 onFileSelected={handleFileSelected}
               />
-            ) : (
+            ) : toolMode === "remove-background" ? (
               <BackgroundRemovalOptions
                 previewUrl={previewUrl}
                 fileName={fileName}
@@ -660,6 +772,19 @@ export default function HomePage() {
                 workerWarning={workerWarning}
                 onPresetChange={setBackgroundRemovalPreset}
                 onRemoveBackground={startBackgroundRemoval}
+                onFileSelected={handleFileSelected}
+              />
+            ) : (
+              <ConversionOptions
+                previewUrl={previewUrl}
+                fileName={fileName}
+                targetFormat={targetFormat}
+                quality={quality}
+                sizeWarning={sizeWarning}
+                workerWarning={workerWarning}
+                onFormatChange={setTargetFormat}
+                onQualityChange={setQuality}
+                onConvert={startConversion}
                 onFileSelected={handleFileSelected}
               />
             ))}

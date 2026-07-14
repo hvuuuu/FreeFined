@@ -144,7 +144,7 @@ export function BackgroundRemovalOptions({
     <div className="mx-auto w-full max-w-5xl flex flex-col gap-4 sm:gap-6 lg:grid lg:grid-cols-[minmax(0,360px)_1fr] lg:gap-8">
       <Card className="mx-auto w-full max-w-[20rem] overflow-hidden md:max-w-md lg:max-w-none">
         <div
-          className="relative mx-auto aspect-[4/5] w-full sm:aspect-[4/3] lg:aspect-square"
+          className="relative mx-auto aspect-4/5 w-full sm:aspect-4/3 lg:aspect-square"
         >
           <Image
             src={previewUrl || "/placeholder.svg"}
@@ -195,7 +195,7 @@ export function BackgroundRemovalOptions({
         <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3 py-0!">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Scissors
-              className="h-4 w-4 flex-shrink-0 text-red-500"
+              className="h-4 w-4 shrink-0 text-red-500"
               aria-hidden="true"
             />
             <span>Background Removal</span>
@@ -261,7 +261,7 @@ export function BackgroundRemovalOptions({
                       disabled={requiresWebGpu}
                       onClick={() => onPresetChange(presetKey)}
                       className={cn(
-                        "h-auto min-h-[7rem] min-w-[9.5rem] flex-col items-start justify-start gap-1 sm:gap-1.5 whitespace-normal rounded-lg border p-2 text-left sm:p-2.5 transition-all",
+                        "h-auto min-h-28 min-w-38 flex-col items-start justify-start gap-1 sm:gap-1.5 whitespace-normal rounded-lg border p-2 text-left sm:p-2.5 transition-all",
                         isSelected
                           ? "border-red-500 bg-red-500/10"
                           : "border-border/50 bg-card/50 hover:border-red-500/50 hover:bg-card/80",
@@ -331,7 +331,7 @@ export function BackgroundRemovalOptions({
                     <div
                       key={processorKey}
                       className={cn(
-                        "flex min-w-[8rem] flex-col gap-1 sm:gap-1.5 rounded-lg border p-2 text-left transition-all sm:p-2.5",
+                        "flex min-w-32 flex-col gap-1 sm:gap-1.5 rounded-lg border p-2 text-left transition-all sm:p-2.5",
                         isSelected
                           ? "border-red-500 bg-red-500/10"
                           : isSupported
@@ -375,7 +375,7 @@ export function BackgroundRemovalOptions({
           <Button
             onClick={onRemoveBackground}
             size="lg"
-            className="w-full cursor-pointer bg-gradient-to-r from-red-500 to-rose-500 text-sm text-white hover:from-red-600 hover:to-rose-600 sm:text-base"
+            className="w-full cursor-pointer bg-linear-to-r from-red-500 to-rose-500 text-sm text-white hover:from-red-600 hover:to-rose-600 sm:text-base"
           >
             <Scissors className="mr-2 h-4 w-4" aria-hidden="true" />
             Remove Background
