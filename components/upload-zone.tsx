@@ -3,8 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { assessImageDimensions } from "@/lib/enhancer/image-size";
-import type { ToolMode } from "@/lib/enhancer/models";
+import type { UploadCopy } from "@/shared/tools/tool-definition";
 import { cn } from "@/lib/utils";
 import {
   BanknoteX,
@@ -24,132 +23,18 @@ import {
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
-
-export interface UploadSelection {
-  file: File;
-  previewUrl: string;
-  width: number;
-  height: number;
-  warning: string | null;
-}
+import {
+  ACCEPT_ATTRIBUTE,
+  processUploadFile,
+  type SourceImage,
+} from "@/shared/upload/process-upload";
 
 interface UploadZoneProps {
-  toolMode?: ToolMode;
-  onFileSelected: (selection: UploadSelection) => void;
+  copy: UploadCopy;
+  onFileSelected: (source: SourceImage) => void;
 }
 
-export const MAX_SIZE_BYTES = 10 * 1024 * 1024;
-export const ACCEPTED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/avif",
-  "image/heic",
-  "image/heif",
-] as const;
-export const ACCEPTED_MIME_SET = new Set<string>(ACCEPTED_MIME_TYPES);
-export const ACCEPT_ATTRIBUTE = ".jpeg,.jpg,.png,.webp,.avif,.heic,.heif,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif";
-
-export function getUploadError(file: File): string | null {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  const isHeic = extension === "heic" || extension === "heif" || file.type === "image/heic" || file.type === "image/heif";
-  const isAvif = extension === "avif" || file.type === "image/avif";
-
-  if (!ACCEPTED_MIME_SET.has(file.type) && !isHeic && !isAvif) {
-    return "Unsupported file type. Please use JPG, PNG, WEBP, AVIF, or HEIC.";
-  }
-
-  if (file.size > MAX_SIZE_BYTES) {
-    return "File is too large. Maximum size is 10MB.";
-  }
-
-  return null;
-}
-
-export function readImageDimensions(
-  file: File,
-): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-
-    image.onload = () => {
-      const width = image.naturalWidth;
-      const height = image.naturalHeight;
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width, height });
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Unable to read image dimensions"));
-    };
-
-    image.src = objectUrl;
-  });
-}
-
-export async function processUploadFile(
-  file: File,
-  onConvertingChange?: (converting: boolean) => void,
-): Promise<{ selection?: UploadSelection; error?: string }> {
-  const nextError = getUploadError(file);
-  if (nextError) return { error: nextError };
-
-  let fileToProcess = file;
-  let customWarning: string | null = null;
-
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  const isHeic = extension === "heic" || extension === "heif" || file.type === "image/heic" || file.type === "image/heif";
-
-  if (isHeic) {
-    try {
-      onConvertingChange?.(true);
-      const heic2any = (await import("heic2any")).default;
-      const converted = await heic2any({
-        blob: file,
-        toType: "image/png",
-      });
-      const singleBlob = Array.isArray(converted) ? converted[0] : converted;
-      const newName = file.name.replace(/\.(heic|heif)$/i, ".png");
-      fileToProcess = new File([singleBlob], newName, { type: "image/png" });
-      customWarning = "HEIC format auto-converted to PNG for browser support.";
-    } catch (err: any) {
-      return {
-        error: `Could not decode HEIC image: ${err?.message || "unsupported HEIC file format"}`,
-      };
-    } finally {
-      onConvertingChange?.(false);
-    }
-  }
-
-  try {
-    const { width, height } = await readImageDimensions(fileToProcess);
-    const imageSizeAssessment = assessImageDimensions(width, height);
-    if (imageSizeAssessment.blockingError) {
-      return { error: imageSizeAssessment.blockingError };
-    }
-
-    return {
-      selection: {
-        file: fileToProcess,
-        previewUrl: URL.createObjectURL(fileToProcess),
-        width,
-        height,
-        warning: customWarning || imageSizeAssessment.warning,
-      },
-    };
-  } catch {
-    return {
-      error: "Unable to load image dimensions. Please try another file.",
-    };
-  }
-}
-
-export function UploadZone({
-  toolMode = "enhance",
-  onFileSelected,
-}: UploadZoneProps) {
+export function UploadZone({ copy, onFileSelected }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,13 +48,13 @@ export function UploadZone({
   const processFile = useCallback(
     async (file: File) => {
       const result = await processUploadFile(file, setIsDecodingHeic);
-      if (result.error) {
+      if (!result.ok) {
         setError(result.error);
         setWarning(null);
-      } else if (result.selection) {
+      } else {
         setError(null);
-        setWarning(result.selection.warning);
-        onFileSelected(result.selection);
+        setWarning(result.source.warning);
+        onFileSelected(result.source);
       }
     },
     [onFileSelected],
@@ -212,27 +97,15 @@ export function UploadZone({
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col items-center gap-6">
-      <div className="space-y-2 sm:space-y-3 text-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-          {toolMode === "remove-background"
-            ? "FreeFined AI background remover for "
-            : toolMode === "convert"
-            ? "FreeFined AI image converter for "
-            : "FreeFined AI image enhancer for "}
+      <div className="space-y-2 text-center sm:space-y-3">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
+          {copy.title}
           <span className="bg-linear-to-r from-red-500 to-rose-500 bg-clip-text text-transparent">
-            {toolMode === "remove-background"
-              ? "transparent images"
-              : toolMode === "convert"
-              ? "any format conversion"
-              : "one-click upscaling"}
+            {copy.highlight}
           </span>
         </h1>
-        <p className="text-pretty text-xs sm:text-sm md:text-base text-muted-foreground">
-          {toolMode === "remove-background"
-            ? "Cut out the main subject from JPG, PNG, WEBP, AVIF, and HEIC images in your browser. No account, no watermark."
-            : toolMode === "convert"
-            ? "Convert JPG, PNG, WEBP, AVIF, and HEIC images to other formats client-side in seconds."
-            : "Upscale, denoise, and sharpen JPG, PNG, WEBP, AVIF, and HEIC photos in seconds. No account, no limits."}
+        <p className="text-muted-foreground text-xs text-pretty sm:text-sm md:text-base">
+          {copy.description}
         </p>
       </div>
 
@@ -251,42 +124,47 @@ export function UploadZone({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          "group flex w-full cursor-pointer flex-col items-center justify-center gap-3 sm:gap-4 border-2 border-dashed bg-card/50 px-4 sm:px-6 py-12 sm:py-16 md:py-20 transition-all duration-300 hover:border-red-500/60 hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group bg-card/50 hover:bg-card/80 focus-visible:ring-ring flex w-full cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed px-4 py-12 transition-all duration-300 hover:border-red-500/60 focus-visible:ring-2 focus-visible:outline-none sm:gap-4 sm:px-6 sm:py-16 md:py-20",
           isDragging && "scale-[1.01] border-red-500 bg-red-500/5",
-          isDecodingHeic && "cursor-not-allowed hover:border-border hover:bg-card/50",
+          isDecodingHeic &&
+            "hover:border-border hover:bg-card/50 cursor-not-allowed",
         )}
       >
         {isDecodingHeic ? (
-          <div className="flex flex-col items-center gap-2.5 text-center text-sm text-red-400 animate-pulse">
+          <div className="flex animate-pulse flex-col items-center gap-2.5 text-center text-sm text-red-400">
             <RefreshCw className="h-6 w-6 animate-spin text-red-500" />
-            <p className="font-semibold text-foreground">Decoding iPhone HEIC image...</p>
-            <p className="text-xs text-muted-foreground">This runs entirely in your browser and may take a moment.</p>
+            <p className="text-foreground font-semibold">
+              Decoding iPhone HEIC image...
+            </p>
+            <p className="text-muted-foreground text-xs">
+              This runs entirely in your browser and may take a moment.
+            </p>
           </div>
         ) : (
           <>
             <div
               className={cn(
-                "flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-linear-to-br from-red-500/20 to-rose-500/20 ring-1 ring-red-500/30 transition-transform duration-300 group-hover:scale-110",
+                "flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-red-500/20 to-rose-500/20 ring-1 ring-red-500/30 transition-transform duration-300 group-hover:scale-110 sm:h-16 sm:w-16",
                 isDragging && "scale-110",
               )}
             >
               {isDragging ? (
                 <ImageIcon
-                  className="h-6 w-6 sm:h-7 sm:w-7 text-red-400"
+                  className="h-6 w-6 text-red-400 sm:h-7 sm:w-7"
                   aria-hidden="true"
                 />
               ) : (
                 <Upload
-                  className="h-6 w-6 sm:h-7 sm:w-7 text-red-400"
+                  className="h-6 w-6 text-red-400 sm:h-7 sm:w-7"
                   aria-hidden="true"
                 />
               )}
             </div>
             <div className="space-y-1 text-center">
-              <p className="text-sm sm:text-base md:text-lg font-semibold">
+              <p className="text-sm font-semibold sm:text-base md:text-lg">
                 {isDragging ? "Release to upload" : "Drop your image here"}
               </p>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-xs sm:text-sm">
                 or click to browse - JPG, PNG, WEBP, AVIF, HEIC up to 10MB
               </p>
             </div>
@@ -316,12 +194,12 @@ export function UploadZone({
       </Card>
 
       {error && (
-        <p role="alert" className="text-xs sm:text-sm text-destructive">
+        <p role="alert" className="text-destructive text-xs sm:text-sm">
           {error}
         </p>
       )}
       {!error && warning && (
-        <p role="status" className="text-xs sm:text-sm text-amber-500">
+        <p role="status" className="text-xs text-amber-500 sm:text-sm">
           {warning}
         </p>
       )}
@@ -345,21 +223,17 @@ export function UploadZone({
         </Badge>
       </div>
 
-      <p className="max-w-7xl text-center text-xs leading-relaxed text-muted-foreground sm:text-sm">
-        {toolMode === "remove-background"
-          ? "FreeFined runs background removal in your browser with WebGPU or WASM when available, then lets you download a transparent image."
-          : toolMode === "convert"
-          ? "FreeFined runs image conversion in your browser using HTML5 Canvas, ensuring privacy and speed."
-          : "FreeFined runs enhancement work in your browser with WebGPU, WebGL, or WASM when available, then lets you compare and download the result."}
+      <p className="text-muted-foreground max-w-7xl text-center text-xs leading-relaxed sm:text-sm">
+        {copy.footnote}
       </p>
 
       <nav
         aria-label="Product information"
-        className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground sm:text-sm"
+        className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-medium sm:text-sm"
       >
         <Link
           href="/about"
-          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="hover:text-foreground focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           About FreeFined
         </Link>
@@ -368,7 +242,7 @@ export function UploadZone({
         </span>
         <Link
           href="/privacy"
-          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="hover:text-foreground focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Privacy
         </Link>

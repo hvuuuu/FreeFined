@@ -6,7 +6,7 @@ FreeFined is a free, browser-first AI image tool built with Next.js. It lets use
 
 - **One-click image upload** for JPG, PNG, WEBP, AVIF, and HEIC files up to 10 MB.
 - **On-the-fly HEIC decoding** via `heic2any` directly in the browser, auto-converting iOS photos to PNG for instant editing.
-- **Client-side image conversion** supporting PNG, JPEG, WebP, and AVIF target formats using HTML5 Canvas.
+- **Client-side image conversion** supporting PNG, JPEG, WebP, and AVIF target formats using OffscreenCanvas in a Web Worker.
 - **Compression quality controls** (10% to 100% slider) for formats supporting lossy compression (JPEG & WebP).
 - **Smart transparency handling** that auto-fills transparent background regions with solid white when converting to JPEG.
 - **Feature support detection** to dynamically check browser compatibility for next-gen formats (like AVIF/WebP).
@@ -91,28 +91,32 @@ The app exposes model endpoints from `app/api/models/[id]/route.ts` and currentl
 - `birefnet-lite-fp16` for high-quality browser background removal on capable WebGPU devices.
 - `u2netp` for lightweight background removal on constrained devices and fallback paths.
 
-By default, models are served from `public/models` when downloaded locally, otherwise they are fetched from pinned upstream URLs through the Next.js API route and cached in the browser. If the enhancement model fetch or ONNX session setup fails, the worker falls back to canvas-based enhancement filters. If BiRefNet-lite cannot load or initialize, background removal retries with U2Netp.
+Model ids, upstream URLs and SHA-256 hashes live in one place: `shared/models/registry.json`. Models are served from `public/models` when downloaded locally, otherwise proxied from their pinned upstream URLs through the Next.js API route and cached in the browser. If the enhancement model fetch or ONNX session setup fails, the worker falls back to canvas-based enhancement filters. If BiRefNet-lite cannot load or initialize, background removal retries with U2Netp.
 
-Optional local model/runtime setup:
+Optional local model download (all models, or only the ids you name):
 
-```powershell
-$env:DOWNLOAD_MODELS=1
+```sh
 pnpm models:install
+pnpm models:install u2netp super-resolution-lite
 ```
 
-The script can download model files into `public/models` and copies ONNX Runtime WebAssembly assets into `public/ort`.
+ONNX Runtime WebAssembly files are copied from `node_modules` into `public/ort` automatically by `pnpm dev` and `pnpm build`, so they always match the installed `onnxruntime-web` version.
 
 ## Project Structure
 
 ```text
-app/                  Next.js app routes, metadata, sitemap, robots, model API
-components/           Upload, tool controls, preview, theme, and UI parts
-lib/enhancer/         Runtime planning, model metadata, model cache, tiling, limits
-workers/              Web Worker enhancement and background removal pipelines
-public/               Logo, robots file, model notes, and ONNX runtime assets
-scripts/              Local model and ONNX runtime asset installer
-styles/               Shared style assets
+app/                  Routes only: page.tsx renders the tools listed in app/tools.ts; model API route
+features/<tool>/      One folder per tool (convert, enhance, remove-background): UI, worker, pure logic, tests.
+                      Each exposes a single ToolDefinition from index.ts.
+shared/               Code used by several tools: worker-job (main thread <-> worker), inference (ONNX
+                      Runtime), image helpers, model registry, runtime detection, upload validation
+components/           Shared UI (components/ui is shadcn)
+e2e/                  Playwright tests
+scripts/              Model installer and ONNX Runtime asset copy
+docs/decisions/       Architecture decision records
 ```
+
+`features/convert` is the reference implementation: new tools should follow its shape.
 
 ## Troubleshooting
 
@@ -145,6 +149,6 @@ This writes pnpm's build approvals to `pnpm-workspace.yaml`. Keep that file in t
 
 ## Notes
 
-- **Client-Side execution**: Image enhancement and background removal processing run inside a browser Web Worker to keep the UI responsive, while file conversion runs instantly on the main thread using the HTML5 Canvas API.
+- **Client-side execution**: enhancement, background removal and format conversion all run inside browser Web Workers, so the UI stays responsive.
 - **Privacy First**: Uploaded images are never sent to a remote backend; all conversion, decoding, enhancement, and background removal are done locally in your browser.
 - **Model Proxying**: The Next.js API route only proxies ONNX model files from pinned upstream CDN URLs to ensure reliable delivery and browser caching.
