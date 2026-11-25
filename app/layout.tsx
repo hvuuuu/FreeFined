@@ -43,13 +43,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  ...(siteConfig.googleSiteVerification
-    ? {
-        verification: {
-          google: siteConfig.googleSiteVerification,
-        },
-      }
-    : {}),
   openGraph: {
     type: "website",
     locale: "en_US",

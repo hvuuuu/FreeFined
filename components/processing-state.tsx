@@ -1,77 +1,74 @@
-"use client"
+"use client";
 
-import { Scissors, X, Wand2, RefreshCw } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import type { ToolMode } from "@/lib/enhancer/models"
-import type { InferenceBackend } from "@/lib/enhancer/runtime-plan"
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { X, type LucideIcon } from "lucide-react";
 
 interface ProcessingStateProps {
-  toolMode: ToolMode
-  progress: number
-  stage: string
-  backend: InferenceBackend | null
-  estimatedTime: string | null
-  onCancel: () => void
-}
-
-function formatBackendLabel(backend: InferenceBackend | null) {
-  if (!backend) {
-    return "Auto"
-  }
-  return backend.toUpperCase()
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  iconAnimation?: "spin" | "pulse";
+  progress: number;
+  stage: string;
+  onCancel: () => void;
 }
 
 export function ProcessingState({
-  toolMode,
+  title,
+  description,
+  icon: Icon,
+  iconAnimation = "pulse",
   progress,
   stage,
-  backend,
-  estimatedTime,
   onCancel,
 }: ProcessingStateProps) {
-  const isBackgroundRemoval = toolMode === "remove-background"
-  const isConvert = toolMode === "convert"
-  const Icon = isConvert ? RefreshCw : (isBackgroundRemoval ? Scissors : Wand2)
-  const title = isConvert
-    ? "Converting your image"
-    : isBackgroundRemoval
-    ? "Removing background"
-    : "Enhancing your image"
-  const progressLabel = isConvert
-    ? "Conversion progress"
-    : isBackgroundRemoval
-    ? "Background removal progress"
-    : "Enhancement progress"
-
   return (
-    <div className="mx-auto w-full max-w-md sm:max-w-2xl space-y-4 sm:space-y-5">
+    <div className="mx-auto w-full max-w-md space-y-4 sm:max-w-2xl sm:space-y-5">
       <Card className="border-border/70 py-5">
         <CardHeader className="pb-3 sm:pb-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div className="flex-1 space-y-1.5">
               <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Icon className={cn("h-4 w-4 shrink-0 text-red-400 sm:h-5 sm:w-5", isConvert ? "animate-spin" : "animate-pulse")} aria-hidden="true" />
+                <Icon
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-red-400 sm:h-5 sm:w-5",
+                    iconAnimation === "spin" ? "animate-spin" : "animate-pulse",
+                  )}
+                  aria-hidden="true"
+                />
                 <span>{title}</span>
               </CardTitle>
               <CardDescription className="text-sm leading-relaxed sm:text-base">
-                {isConvert
-                  ? "Running client-side in your browser."
-                  : `Running on ${formatBackendLabel(backend)}${estimatedTime ? ` (${estimatedTime})` : ""}.`}
+                {description}
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" onClick={onCancel} className="mt-1 shrink-0 cursor-pointer text-sm sm:mt-0">
-              <X className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              className="mt-1 shrink-0 cursor-pointer text-sm sm:mt-0"
+            >
+              <X
+                className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4"
+                aria-hidden="true"
+              />
               Cancel
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-2 sm:space-y-3">
-          <Progress value={progress} aria-label={progressLabel} />
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <Progress value={progress} aria-label={`${title} progress`} />
+          <div className="text-muted-foreground flex items-center justify-between text-sm">
             <span>{stage}</span>
             <span className="tabular-nums">{progress}%</span>
           </div>
@@ -79,11 +76,11 @@ export function ProcessingState({
       </Card>
 
       <div className="space-y-2">
-        <Skeleton className="h-4 w-20 sm:h-5 sm:w-24 mx-auto sm:mx-0" />
-        <Card className="overflow-hidden border-border/40 bg-muted/20 py-5">
+        <Skeleton className="mx-auto h-4 w-20 sm:mx-0 sm:h-5 sm:w-24" />
+        <Card className="border-border/40 bg-muted/20 overflow-hidden py-5">
           <Skeleton className="aspect-4/3 w-full sm:aspect-16/10" />
         </Card>
       </div>
     </div>
-  )
+  );
 }

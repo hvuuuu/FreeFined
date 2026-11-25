@@ -19,25 +19,29 @@ const highlights = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="bg-background text-foreground flex min-h-screen flex-col">
       <Header />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 justify-center flex-col gap-10 p-4 sm:p-6 lg:py-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center gap-10 p-4 sm:p-6 lg:py-8">
         <section className="space-y-4">
           <p className="text-sm font-medium text-red-400">{siteConfig.name}</p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             About FreeFined
           </h1>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             FreeFined is a free AI image enhancer for sharpening, denoising,
             upscaling, and background removal directly from the browser. The app
-            is built for quick edits without accounts, paywalls, or watermarking.
+            is built for quick edits without accounts, paywalls, or
+            watermarking.
           </p>
         </section>
 
-        <section className="grid gap-4 border-y border-border/60 py-6 sm:grid-cols-2">
+        <section className="border-border/60 grid gap-4 border-y py-6 sm:grid-cols-2">
           {highlights.map((highlight) => (
-            <div key={highlight} className="rounded-md border border-border/50 p-4">
-              <p className="text-sm leading-6 text-muted-foreground">
+            <div
+              key={highlight}
+              className="border-border/50 rounded-md border p-4"
+            >
+              <p className="text-muted-foreground text-sm leading-6">
                 {highlight}
               </p>
             </div>
@@ -48,17 +52,17 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold tracking-tight">
             How the app works
           </h2>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             After an image is selected, FreeFined checks its format and size,
             creates a local preview, and sends the image to a browser worker for
             the selected tool. The worker loads the best available model path
             for the device and returns either an enhanced image or a transparent
             PNG that can be previewed and downloaded.
           </p>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             Uploaded images are not processed by a FreeFined application
-            backend. Model files may be loaded through the app&apos;s model route
-            so the browser can perform enhancement and background removal
+            backend. Model files may be loaded through the app&apos;s model
+            route so the browser can perform enhancement and background removal
             locally.
           </p>
         </section>
@@ -67,7 +71,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold tracking-tight">
             Privacy basics
           </h2>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             FreeFined does not require an account. For more detail about local
             image handling, analytics, and model loading, read the{" "}
             <Link href="/privacy" className="text-red-400 hover:text-red-300">

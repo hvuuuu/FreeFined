@@ -2,15 +2,23 @@
   "name": "freefined",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/copy-ort-assets.ts && next dev",
+    "build": "node scripts/copy-ort-assets.ts && next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
     "lint": "eslint .",
-    "models:install": "powershell -ExecutionPolicy Bypass -File scripts/install-models.ps1"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "models:install": "node scripts/install-models.ts",
+    "prepare": "husky"
   },
   "dependencies": {
-    "@radix-ui/react-navigation-menu": "1.2.0",
     "@radix-ui/react-progress": "1.1.8",
     "@radix-ui/react-scroll-area": "1.2.10",
     "@radix-ui/react-separator": "1.1.8",
@@ -28,15 +36,34 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9.39.4",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.5",
+    "eslint-plugin-boundaries": "7.4.4",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.2",
     "postcss": "^8.5",
+    "prettier": "3.10.1",
+    "prettier-plugin-tailwindcss": "0.8.1",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",
-    "typescript": "5.7.3"
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.74.0",
+    "vitest": "5.1.1"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@11.1.1",
+  "lint-staged": {
+    "*.{ts,tsx,mts}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{js,mjs,json,md,css,yml,yaml}": "prettier --write"
   }
 }

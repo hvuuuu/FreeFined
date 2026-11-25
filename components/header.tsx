@@ -9,8 +9,8 @@ const githubUrl = "https://github.com/hvuuuu";
 
 export function Header({ onReset }: { onReset?: () => void }) {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 h-14">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 h-full">
+    <header className="border-border/60 bg-background/80 supports-backdrop-filter:bg-background/60 sticky top-0 z-40 h-14 w-full border-b backdrop-blur">
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2" onClick={onReset}>
           <Image
             src="/logo.ico"
@@ -33,6 +33,8 @@ export function Header({ onReset }: { onReset?: () => void }) {
             className="cursor-pointer"
           >
             <Link href={githubUrl} target="_blank" rel="noopener noreferrer">
+              {/* Lucide is dropping brand icons; ^0.564 cannot pull that release, so swap this before upgrading. */}
+              {/* eslint-disable-next-line @typescript-eslint/no-deprecated */}
               <Github className="h-5 w-5" aria-hidden="true" />
             </Link>
           </Button>

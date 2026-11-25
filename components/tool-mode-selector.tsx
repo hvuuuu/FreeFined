@@ -1,49 +1,47 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { ToolMode } from "@/lib/enhancer/models";
 import { cn } from "@/lib/utils";
-import { Scissors, Wand2, RefreshCw, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-interface ToolModeSelectorProps {
-  value: ToolMode;
-  disabled?: boolean;
-  onChange: (mode: ToolMode) => void;
+interface ToolOption<TId extends string> {
+  id: TId;
+  label: string;
+  icon: LucideIcon;
 }
 
-const TOOL_OPTIONS: Array<{
-  id: ToolMode;
-  label: string;
-  Icon: LucideIcon;
-}> = [
-  { id: "enhance", label: "Enhance", Icon: Wand2 },
-  { id: "remove-background", label: "Remove BG", Icon: Scissors },
-  { id: "convert", label: "Convert", Icon: RefreshCw },
-];
+interface ToolModeSelectorProps<TId extends string> {
+  tools: readonly ToolOption<TId>[];
+  value: TId;
+  disabled?: boolean;
+  onChange: (id: TId) => void;
+}
 
-export function ToolModeSelector({
+export function ToolModeSelector<TId extends string>({
+  tools,
   value,
   disabled = false,
   onChange,
-}: ToolModeSelectorProps) {
+}: ToolModeSelectorProps<TId>) {
   return (
     <div
       role="tablist"
       aria-label="Image tool"
-      className="mx-auto grid w-full max-w-md grid-cols-3 gap-1 rounded-lg border border-border/70 bg-card/70 p-1 shadow-sm"
+      className="border-border/70 bg-card/70 mx-auto grid w-full max-w-md gap-1 rounded-lg border p-1 shadow-sm"
+      style={{ gridTemplateColumns: `repeat(${tools.length}, minmax(0, 1fr))` }}
     >
-      {TOOL_OPTIONS.map((option) => {
-        const isSelected = value === option.id;
+      {tools.map((tool) => {
+        const isSelected = value === tool.id;
 
         return (
           <Button
-            key={option.id}
+            key={tool.id}
             type="button"
             role="tab"
             aria-selected={isSelected}
             disabled={disabled}
             variant="ghost"
-            onClick={() => onChange(option.id)}
+            onClick={() => onChange(tool.id)}
             className={cn(
               "h-10 cursor-pointer gap-1 rounded-md text-xs font-medium sm:text-sm",
               isSelected
@@ -51,8 +49,8 @@ export function ToolModeSelector({
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <option.Icon className="h-4 w-4" aria-hidden="true" />
-            {option.label}
+            <tool.icon className="h-4 w-4" aria-hidden="true" />
+            {tool.label}
           </Button>
         );
       })}
