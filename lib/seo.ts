@@ -8,9 +8,6 @@ export const siteConfig = {
     "FreeFined is a free browser-based AI image enhancer and background remover for JPG, PNG, and WEBP images without an account.",
   creator: "Vuntra",
   ogImagePath: "/opengraph-image",
-  googleSiteVerification:
-    process.env.GOOGLE_SITE_VERIFICATION ??
-    process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   keywords: [
     "FreeFined",
     "free AI image enhancer",

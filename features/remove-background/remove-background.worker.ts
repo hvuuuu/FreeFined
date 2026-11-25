@@ -1,4 +1,5 @@
 import {
+  at,
   clamp01,
   clampToByte,
   imageBitmapFromFile,
@@ -206,8 +207,9 @@ async function getBiRefNetWebGpuDevice() {
         "maxTextureArrayLayers",
       ];
       for (const key of limitKeys) {
-        if (key in adapter.limits) {
-          requiredLimits[key] = adapter.limits[key];
+        const limit = adapter.limits[key];
+        if (limit !== undefined) {
+          requiredLimits[key] = limit;
         }
       }
 
@@ -252,7 +254,7 @@ async function createSessionOptions(
 
   return {
     executionProviders: [executionProvider],
-    graphOptimizationLevel: mode === "u2netp" ? "disabled" : "all",
+    graphOptimizationLevel: "disabled",
   };
 }
 
@@ -343,12 +345,13 @@ function createInputTensorFromImageData(
     for (let x = 0; x < width; x += 1) {
       const pixelIndex = (y * width + x) * 4;
       const position = y * width + x;
-      const alpha = imageData.data[pixelIndex + 3] / 255;
-      const r = (imageData.data[pixelIndex] * alpha + 255 * (1 - alpha)) / 255;
+      const alpha = at(imageData.data, pixelIndex + 3) / 255;
+      const r =
+        (at(imageData.data, pixelIndex) * alpha + 255 * (1 - alpha)) / 255;
       const g =
-        (imageData.data[pixelIndex + 1] * alpha + 255 * (1 - alpha)) / 255;
+        (at(imageData.data, pixelIndex + 1) * alpha + 255 * (1 - alpha)) / 255;
       const b =
-        (imageData.data[pixelIndex + 2] * alpha + 255 * (1 - alpha)) / 255;
+        (at(imageData.data, pixelIndex + 2) * alpha + 255 * (1 - alpha)) / 255;
 
       const normR = (r - spec.mean[0]) / spec.std[0];
       const normG = (g - spec.mean[1]) / spec.std[1];
@@ -490,13 +493,13 @@ function applyMaskToSource(
   const output = new ImageData(sourceImageData.width, sourceImageData.height);
 
   for (let i = 0; i < sourceImageData.data.length; i += 4) {
-    const sourceAlpha = sourceImageData.data[i + 3] / 255;
-    const maskAlpha = maskImageData.data[i + 3] / 255;
+    const sourceAlpha = at(sourceImageData.data, i + 3) / 255;
+    const maskAlpha = at(maskImageData.data, i + 3) / 255;
     const alpha = sourceAlpha * maskAlpha;
 
-    output.data[i] = sourceImageData.data[i];
-    output.data[i + 1] = sourceImageData.data[i + 1];
-    output.data[i + 2] = sourceImageData.data[i + 2];
+    output.data[i] = at(sourceImageData.data, i);
+    output.data[i + 1] = at(sourceImageData.data, i + 1);
+    output.data[i + 2] = at(sourceImageData.data, i + 2);
     output.data[i + 3] = clampToByte(alpha * 255);
   }
 

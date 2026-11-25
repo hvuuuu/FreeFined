@@ -1,6 +1,8 @@
 // Worker-side ONNX Runtime helpers shared by every model-based tool.
 
-export type OrtModule = typeof import("onnxruntime-web/all");
+import type * as Ort from "onnxruntime-web/all";
+
+export type OrtModule = typeof Ort;
 export type OrtSession = Awaited<
   ReturnType<OrtModule["InferenceSession"]["create"]>
 >;

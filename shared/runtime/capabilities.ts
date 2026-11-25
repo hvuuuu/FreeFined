@@ -21,11 +21,6 @@ export interface GpuLimitsProbe {
 interface ExtendedNavigator {
   deviceMemory?: number;
   connection?: { saveData?: boolean; effectiveType?: string };
-  gpu?: {
-    requestAdapter(options?: {
-      powerPreference?: "low-power" | "high-performance";
-    }): Promise<{ limits: Record<string, number | undefined> } | null>;
-  };
 }
 
 function detectWebGLSupport(): boolean {
@@ -92,12 +87,12 @@ let gpuLimitsPromise: Promise<GpuLimitsProbe | null> | null = null;
 /** Adapter limits don't change during a session, so the probe runs once and is shared. */
 export function probeWebGpuLimits(): Promise<GpuLimitsProbe | null> {
   gpuLimitsPromise ??= (async () => {
-    const gpu = (navigator as Navigator & ExtendedNavigator).gpu;
-    if (!gpu) {
+    // lib.dom types navigator.gpu as always present; browsers without WebGPU omit it.
+    if (!("gpu" in navigator)) {
       return null;
     }
     try {
-      const adapter = await gpu.requestAdapter({
+      const adapter = await navigator.gpu.requestAdapter({
         powerPreference: "high-performance",
       });
       if (!adapter) {
@@ -105,7 +100,7 @@ export function probeWebGpuLimits(): Promise<GpuLimitsProbe | null> {
       }
       return {
         maxStorageBuffersPerShaderStage:
-          adapter.limits.maxStorageBuffersPerShaderStage ?? 8,
+          adapter.limits.maxStorageBuffersPerShaderStage,
       };
     } catch {
       return null;

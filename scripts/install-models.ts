@@ -48,10 +48,7 @@ await mkdir(modelsDir, { recursive: true });
 for (const [id, model] of models) {
   const target = path.join(modelsDir, model.file);
 
-  if (
-    (await exists(target)) &&
-    (model.sha256 === null || (await sha256(target)) === model.sha256)
-  ) {
+  if ((await exists(target)) && (await sha256(target)) === model.sha256) {
     console.log(`skip ${id}: already present`);
     continue;
   }
@@ -66,11 +63,7 @@ for (const [id, model] of models) {
   await writeFile(target, new Uint8Array(await response.arrayBuffer()));
 
   const actual = await sha256(target);
-  if (model.sha256 === null) {
-    console.warn(
-      `  ${id} has no pinned hash. To pin it, set "sha256": "${actual}" in shared/models/registry.json`,
-    );
-  } else if (actual !== model.sha256) {
+  if (actual !== model.sha256) {
     throw new Error(
       `Checksum mismatch for ${id}: expected ${model.sha256}, got ${actual}`,
     );

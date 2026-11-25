@@ -65,7 +65,7 @@ export function UploadZone({ copy, onFileSelected }: UploadZoneProps) {
       event.preventDefault();
       setIsDragging(false);
       if (isDecodingHeic) return;
-      const file = event.dataTransfer.files?.[0];
+      const file = event.dataTransfer.files[0];
       if (file) {
         void processFile(file);
       }

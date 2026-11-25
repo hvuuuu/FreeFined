@@ -1,4 +1,4 @@
-import { clampToByte, imageBitmapFromFile } from "@/shared/image/pixels";
+import { at, clampToByte, imageBitmapFromFile } from "@/shared/image/pixels";
 import { assessImageDimensions } from "@/shared/image/image-size";
 import { buildTileGrid } from "@/shared/image/tiling";
 import {
@@ -173,9 +173,9 @@ function createInputTensorFromImageData(
         const sourceX = Math.min(imageData.width - 1, x);
         const sourceY = Math.min(imageData.height - 1, y);
         const pixelIndex = (sourceY * imageData.width + sourceX) * 4;
-        const r = imageData.data[pixelIndex];
-        const g = imageData.data[pixelIndex + 1];
-        const b = imageData.data[pixelIndex + 2];
+        const r = at(imageData.data, pixelIndex);
+        const g = at(imageData.data, pixelIndex + 1);
+        const b = at(imageData.data, pixelIndex + 2);
         const grayscale = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
         tensorData[y * modelInputWidth + x] = grayscale;
       }
@@ -199,10 +199,11 @@ function createInputTensorFromImageData(
       const pixelIndex = (sourceY * imageData.width + sourceX) * 4;
       const position = y * modelInputWidth + x;
 
-      tensorData[position] = imageData.data[pixelIndex] / 255;
-      tensorData[planeSize + position] = imageData.data[pixelIndex + 1] / 255;
+      tensorData[position] = at(imageData.data, pixelIndex) / 255;
+      tensorData[planeSize + position] =
+        at(imageData.data, pixelIndex + 1) / 255;
       tensorData[planeSize * 2 + position] =
-        imageData.data[pixelIndex + 2] / 255;
+        at(imageData.data, pixelIndex + 2) / 255;
     }
   }
 
@@ -246,9 +247,9 @@ function fillTransparentPixels(imageData: ImageData, passes = 2) {
             if (source[neighborIndex + 3] === 0) {
               continue;
             }
-            r += source[neighborIndex];
-            g += source[neighborIndex + 1];
-            b += source[neighborIndex + 2];
+            r += at(source, neighborIndex);
+            g += at(source, neighborIndex + 1);
+            b += at(source, neighborIndex + 2);
             count += 1;
           }
         }
@@ -284,17 +285,19 @@ function applyAlphaAndEdgeBlend(
 
   const sourceData = alphaSource.data;
   for (let i = 0; i < targetData.length; i += 4) {
-    const alphaByte = sourceData[i + 3];
+    const alphaByte = at(sourceData, i + 3);
     const alpha = alphaByte / 255;
 
     if (alpha < 1) {
       const inv = 1 - alpha;
-      targetData[i] = Math.round(targetData[i] * alpha + sourceData[i] * inv);
+      targetData[i] = Math.round(
+        at(targetData, i) * alpha + at(sourceData, i) * inv,
+      );
       targetData[i + 1] = Math.round(
-        targetData[i + 1] * alpha + sourceData[i + 1] * inv,
+        at(targetData, i + 1) * alpha + at(sourceData, i + 1) * inv,
       );
       targetData[i + 2] = Math.round(
-        targetData[i + 2] * alpha + sourceData[i + 2] * inv,
+        at(targetData, i + 2) * alpha + at(sourceData, i + 2) * inv,
       );
     }
 
@@ -323,13 +326,13 @@ function tensorToImageData(
     const chromaImageData = alphaSource;
 
     for (let i = 0; i < area; i += 1) {
-      const value = clampToByte(tensorData[i] * 255);
+      const value = clampToByte(at(tensorData, i) * 255);
       const pixelIndex = i * 4;
 
       if (chromaImageData) {
-        const sourceR = chromaImageData.data[pixelIndex];
-        const sourceG = chromaImageData.data[pixelIndex + 1];
-        const sourceB = chromaImageData.data[pixelIndex + 2];
+        const sourceR = at(chromaImageData.data, pixelIndex);
+        const sourceG = at(chromaImageData.data, pixelIndex + 1);
+        const sourceB = at(chromaImageData.data, pixelIndex + 2);
         const rgb = yCbCrToRgb(
           value,
           rgbToCb(sourceR, sourceG, sourceB),
@@ -349,9 +352,9 @@ function tensorToImageData(
   }
 
   for (let i = 0; i < area; i += 1) {
-    const r = clampToByte(tensorData[i] * 255);
-    const g = clampToByte(tensorData[area + i] * 255);
-    const b = clampToByte(tensorData[area * 2 + i] * 255);
+    const r = clampToByte(at(tensorData, i) * 255);
+    const g = clampToByte(at(tensorData, area + i) * 255);
+    const b = clampToByte(at(tensorData, area * 2 + i) * 255);
     const pixelIndex = i * 4;
 
     imageData.data[pixelIndex] = r;
@@ -452,7 +455,7 @@ async function runModelOnTile(
   }
 }
 
-async function processTile(
+function processTile(
   sourceContext: OffscreenCanvasRenderingContext2D,
   outputContext: OffscreenCanvasRenderingContext2D,
   region: { x: number; y: number; width: number; height: number },
@@ -601,9 +604,7 @@ async function runEnhancementPipeline(
 
     report(3, "Preparing tiles...");
 
-    for (let index = 0; index < totalTiles; index += 1) {
-      const tile = tiles[index];
-
+    for (const [index, tile] of tiles.entries()) {
       if (modelSession) {
         const modelOutput =
           index === 0 && firstTileOutput
@@ -642,7 +643,7 @@ async function runEnhancementPipeline(
           scaledHeight,
         );
       } else {
-        await processTile(
+        processTile(
           sourceContext,
           outputContext,
           tile,

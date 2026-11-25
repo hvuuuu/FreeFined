@@ -51,7 +51,8 @@ function openIndexedDb(): Promise<IDBDatabase | null> {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () =>
+      reject(request.error ?? new Error("IndexedDB request failed"));
   });
 }
 
@@ -68,7 +69,8 @@ async function readFromIndexedDb(key: string): Promise<ArrayBuffer | null> {
 
     request.onsuccess = () =>
       resolve((request.result as ArrayBuffer | undefined) ?? null);
-    request.onerror = () => reject(request.error);
+    request.onerror = () =>
+      reject(request.error ?? new Error("IndexedDB request failed"));
     tx.oncomplete = () => db.close();
   });
 }
@@ -84,7 +86,8 @@ async function writeToIndexedDb(key: string, buffer: ArrayBuffer) {
     const store = tx.objectStore(DB_STORE);
     store.put(buffer, key);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () =>
+      reject(tx.error ?? new Error("IndexedDB transaction failed"));
   });
 
   db.close();

@@ -1,0 +1,6 @@
+# Store and check out text files with LF on every OS (Prettier also writes LF).
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.wasm binary
+*.onnx binary

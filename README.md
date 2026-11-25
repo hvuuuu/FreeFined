@@ -57,29 +57,21 @@ pnpm run build
 pnpm run start
 ```
 
-Run linting:
+Run every check CI runs (format, lint, both type checks, unit tests):
 
 ```powershell
-pnpm run lint
+pnpm check
 ```
 
-## Search Console Verification
-
-FreeFined can emit Google Search Console verification metadata during build.
-Set either environment variable before deploying:
+Run the end-to-end tests (downloads the two small models they use, once):
 
 ```powershell
-$env:GOOGLE_SITE_VERIFICATION="your-google-token"
+pnpm models:install u2netp super-resolution-lite
+pnpm exec playwright install chromium
+pnpm e2e
 ```
 
-or:
-
-```powershell
-$env:NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION="your-google-token"
-```
-
-After deployment, verify `https://freefined.vercel.app/` in Google Search
-Console and submit `https://freefined.vercel.app/sitemap.xml`.
+A pre-commit hook formats and lints staged files. See `docs/decisions/` for why the toolchain and folder structure look the way they do.
 
 ## Model Runtime
 

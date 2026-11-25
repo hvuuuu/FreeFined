@@ -30,9 +30,9 @@ const privacySections = [
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="bg-background text-foreground flex min-h-screen flex-col">
       <Header />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 justify-center flex-col gap-6 p-4 sm:p-6 lg:py-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center gap-6 p-4 sm:p-6 lg:py-8">
         <section className="space-y-4">
           <p className="text-sm font-medium text-red-400">
             Last updated May 21, 2026
@@ -40,20 +40,20 @@ export default function PrivacyPage() {
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Privacy
           </h1>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             FreeFined is designed as a browser-first image enhancement and
-            background removal tool.
-            This page explains what happens when you use the app.
+            background removal tool. This page explains what happens when you
+            use the app.
           </p>
         </section>
 
-        <section className="divide-y divide-border/60 border-y border-border/60">
+        <section className="divide-border/60 border-border/60 divide-y border-y">
           {privacySections.map((section) => (
             <div key={section.title} className="space-y-3 py-6">
               <h2 className="text-xl font-semibold tracking-tight">
                 {section.title}
               </h2>
-              <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+              <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
                 {section.body}
               </p>
             </div>
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold tracking-tight">Contact</h2>
-          <p className="text-sm leading-7 text-muted-foreground sm:text-base text-justify">
+          <p className="text-muted-foreground text-justify text-sm leading-7 sm:text-base">
             FreeFined is maintained by Vuntra. For project questions, use the
             GitHub link in the header.
           </p>

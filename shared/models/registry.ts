@@ -8,8 +8,8 @@ export type ModelId = keyof typeof registry;
 export interface ModelAsset {
   file: string;
   upstreamUrl: string;
-  /** Uppercase hex. `null` means not pinned yet. */
-  sha256: string | null;
+  /** Uppercase hex SHA-256 of the file; the installer refuses files that do not match. */
+  sha256: string;
 }
 
 export const MODEL_REGISTRY: Record<ModelId, ModelAsset> = registry;
